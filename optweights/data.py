@@ -13,7 +13,7 @@ class data():
 class Toy(data):
 
 
-    def __init__(self,  n, p, beta_1, beta_0, sigma_1, sigma_0, mu, gamma, a_0, a_1, d=1):
+    def __init__(self,  n, p, beta_1, beta_0, sigma_1, sigma_0, mu, gamma, a_0, a_1, d):
         super().__init__()
 
         # set the parameters of the Toy data
@@ -33,7 +33,7 @@ class Toy(data):
 
         
 
-    def dgp_mv(self, add_index_group=True, logistic=False):
+    def dgp_mv(self, logistic=False):
         
 
         # generate multivariate x with mean mu and covariance matrix based on gamma
@@ -88,8 +88,9 @@ class Toy(data):
         self.B_1 = B_1
         self.B_0 = B_0
 
-        if add_index_group:
-            g += 1
+        # transform g variable - add 1, turn to int
+        g = g + 1
+        g = g.astype(int)
 
         return X, y, g
 

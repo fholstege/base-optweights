@@ -16,6 +16,7 @@ class weights():
 
         # set the weights for each group
         self.weights_dict = self.set_weights_per_group()
+        print(self.weights_dict)
 
 
 
@@ -65,6 +66,10 @@ class weights():
 
         # assign the weights
         weights = np.vectorize(assign_weights)(g)
+
+        # if not 1d array, reshape
+        if len(weights.shape) > 1:
+            weights = weights.reshape(-1)
 
         return weights
 
