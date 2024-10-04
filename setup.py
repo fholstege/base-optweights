@@ -16,7 +16,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.9.12",
     ],
-    python_requires=">=3.11"
+    python_requires=">=3.9.12"
 )

@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+setup.py
+optweights.egg-info/PKG-INFO
+optweights.egg-info/SOURCES.txt
+optweights.egg-info/dependency_links.txt
+optweights.egg-info/top_level.txt
+tests/test_weights.py
