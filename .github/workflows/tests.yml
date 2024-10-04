@@ -27,4 +27,5 @@ jobs:
     - name: Run tests
       run: |
         export PYTHONPATH=$PYTHONPATH: optweights
+        pip install -r requirements.txt
         pytest tests/
