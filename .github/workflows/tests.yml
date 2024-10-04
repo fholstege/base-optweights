@@ -26,4 +26,5 @@ jobs:
         pip install -e optweights
     - name: Run tests
       run: |
+        export PYTHONPATH=$PYTHONPATH: optweights
         pytest tests/

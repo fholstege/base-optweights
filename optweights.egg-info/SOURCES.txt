@@ -1,8 +1,7 @@
 README.md
-pyproject.toml
-setup.py
 optweights/__init__.py
 optweights/data.py
+optweights/setup.py
 optweights/weights.py
 optweights.egg-info/PKG-INFO
 optweights.egg-info/SOURCES.txt
