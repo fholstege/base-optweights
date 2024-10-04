@@ -3,7 +3,7 @@
 # import the add_up function from optweights
 import pytest
 from optweights.weights import weights
-
+import numpy as np
 
 
 def test_weight_conversion():
@@ -40,7 +40,9 @@ def test_assign_weights():
     # check if the weights are assigned correctly
     w_to_be = [0.25/0.74, 0.25/0.01, 0.25/0.05, 0.25/0.2, 0.25/0.74, 0.25/0.01, 0.25/0.05, 0.25/0.2]
 
-    assert w == w_to_be
+    # check if all elements are the same for the same index
+    assert np.all(w == w_to_be)
+
 
 
    
