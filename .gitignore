@@ -7,5 +7,5 @@ dist/
 __pycache__/
 *.so
 *~
-venv/
+.env
 *experiment.py

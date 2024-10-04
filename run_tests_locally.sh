@@ -9,17 +9,14 @@ pyenv local 3.9.12  # This sets up all versions. Adjust as needed.
 
 # Step 2: Create and activate a virtual environment
 echo "Creating virtual environment..."
-python -m venv venv_tests
-source venv_tests/bin/activate
+python -m venv .env.test
+source .env.test/bin/activate
 
-# step 2.5 Set up PYTHONPATH
-export PYTHONPATH=src
 
 # Step 3: Install dependencies
 echo "Installing dependencies..."
-python -m pip install --upgrade pip
 pip install pytest
-pip install -e .
+pip install -r requirements.txt
 
 # Step 4: Run tests
 echo "Running tests..."
@@ -27,5 +24,6 @@ pytest tests/
 
 # Deactivate virtual environment
 deactivate
+rm -rf .env.test
 
 echo "Local simulation completed"
