@@ -43,8 +43,6 @@ def test_assign_weights():
     # check if all elements are the same for the same index
     assert np.all(w == w_to_be)
 
-
-
    
 
 # if main is run, run the tests

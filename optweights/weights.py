@@ -16,7 +16,16 @@ class weights():
 
         # set the weights for each group
         self.weights_dict = self.set_weights_per_group()
-        print(self.weights_dict)
+
+    def reset_weights(self, p_w):
+        """
+        Reset the weights for each group.
+        """
+
+        # set the new weights
+        self.p_w = p_w
+        self.weights_dict = self.set_weights_per_group()
+        print('self.weights_dict', self.weights_dict)
 
 
 

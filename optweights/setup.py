@@ -6,7 +6,6 @@ setup(
     author="Floris Holstege",
     author_email="f.g.holstege@uva.nl",
     description="A package for optimizing weights",
-    packages=find_packages(exclude=["tests*"]),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
