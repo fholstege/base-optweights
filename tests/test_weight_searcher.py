@@ -5,10 +5,12 @@ import pytest
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from optweights.weight_searcher import weight_searcher
+from optweights.weights import weights
 from optweights.data import Toy
-from optweights.helpers import set_seed
+from optweights.helpers import set_seed, get_p_dict
 import torch
 from torch.autograd.functional import jacobian
+
 import sys
 
 def test_weight_searcher_helpers():
@@ -76,6 +78,7 @@ def test_weight_searcher_helpers():
     assert all([0 <= val <= 1 for val in list(p_dict_normalized.values())])
 
 
+
 def test_augmented_loss_grad():
     # Set random seed for reproducibility
     set_seed(0)
@@ -140,14 +143,20 @@ def test_BCE_grad():
 
     # Generate random data
     X = np.random.randn(100, 5)
-    y = np.random.randint(0, 2, 100)
-    Beta = np.random.randn(6)  # 5 features + 1 intercept
+    y = np.random.randint(0, 2, 100).reshape(-1, 1)
+    g = np.random.randint(1, 3, 100)
+    Beta = np.random.randn(6).reshape(-1,1)  # 5 features + 1 intercept
     l1_penalty = 0.01
     l2_penalty = 0.01
 
     # from the weight_searcher class, get calc_grad_BCE
     calc_grad_func = weight_searcher.calc_grad_BCE
-    grad_numpy = calc_grad_func(X, Beta, y, l1_penalty, l2_penalty)
+    p_train = get_p_dict(g)
+    weight_obj_val = weights(p_w={1: 0.5, 2: 0.5}, p_train=p_train)
+    w = weight_obj_val.assign_weights(g)
+    print('shape of X, y, w, Beta', X.shape, y.shape, w.shape, Beta.shape)
+
+    grad_numpy = calc_grad_func(X, Beta, y, l1_penalty, l2_penalty, w)
 
     # Calculate gradient using PyTorch
     X_torch = torch.tensor(X, dtype=torch.float32, requires_grad=True)
@@ -156,9 +165,11 @@ def test_BCE_grad():
 
     # Define the BCE loss function with L1 and L2 regularization
     def bce_loss_with_reg(beta):
+
         X_with_intercept = torch.cat([torch.ones(X_torch.shape[0], 1), X_torch], dim=1)
         output = torch.sigmoid(X_with_intercept @ beta)
-        bce_loss = torch.nn.functional.binary_cross_entropy(output, y_torch, reduction='mean')
+        w_torch = torch.tensor(w, dtype=torch.float32).unsqueeze(1)
+        bce_loss = torch.nn.functional.binary_cross_entropy(output, y_torch, reduction='mean', weight=w_torch)
         l1_reg = l1_penalty * torch.norm(beta, 1)
         l2_reg = l2_penalty * torch.norm(beta, 2)**2
         return bce_loss + ((l1_reg + l2_reg) / X_torch.shape[0])
@@ -167,7 +178,7 @@ def test_BCE_grad():
     grad_torch = jacobian(bce_loss_with_reg, Beta_torch).squeeze()
 
     # Convert numpy gradient to PyTorch tensor for comparison
-    grad_numpy_tensor = torch.tensor(grad_numpy, dtype=torch.float32)
+    grad_numpy_tensor = torch.tensor(grad_numpy, dtype=torch.float32).squeeze()
 
     # Compare gradients
     torch.testing.assert_close(grad_numpy_tensor, grad_torch, rtol=eps, atol=eps,
@@ -182,5 +193,5 @@ def test_BCE_grad():
 if __name__ == "__main__":
     test_weight_searcher_helpers()
     test_BCE_grad()
-    #test_augmented_loss_grad()
+    test_augmented_loss_grad()
     

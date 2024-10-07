@@ -7,6 +7,7 @@ from optweights.metrics import calc_loss_for_model, calc_worst_group_loss
 from optweights.weights import weights
 from sklearn.metrics import log_loss, mean_squared_error
 import copy
+import time
 
 class weight_searcher():
     def __init__(self, sklearn_model, X_train, y_train, g_train, X_val, y_val, g_val, p_ood=None, GDRO=False, weight_rounding=4, p_min=10e-4):
@@ -191,7 +192,7 @@ class weight_searcher():
             # check the shape of w
             if len(w.shape) == 1:
                 w = w.reshape(-1, 1)
-    
+                
             # multiply element wise with w
             weighted_sigmoid_X_t_Beta = (sigmoid_X_t_Beta - y) * w
             grad =np.matmul(X.T, weighted_sigmoid_X_t_Beta)
@@ -286,7 +287,8 @@ class weight_searcher():
 
             # set the change for the last group based on change in all other groups
             grad_ift_dict[last_group] = grad_last_group
-       
+        
+      
 
         return grad_ift_dict
 
@@ -476,8 +478,10 @@ class weight_searcher():
 
 
             # after the p_at_t is determined, update the model
+            time_before = time.time()
             self.model.reset_weights(p_w=p_t)
             self.model.fit_model(self.X_train, self.y_train, self.g_train)
+            print('The model is updated in {} seconds'.format(time.time()-time_before))
 
 
             # save the trajectory if needed
