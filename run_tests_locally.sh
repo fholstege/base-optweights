@@ -16,6 +16,7 @@ source .env.test/bin/activate
 # Step 3: Install dependencies
 echo "Installing dependencies..."
 pip install pytest
+pip install torch
 pip install -r requirements.txt
 
 # Step 4: Run tests

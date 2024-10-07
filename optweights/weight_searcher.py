@@ -30,16 +30,12 @@ class weight_searcher():
         self.groups = list(self.p_train.keys())
         self.G = len(self.groups)
 
-
         # initialize the weights object for train, val
         self.weights_obj_tr = weights(p_w=None, p_train=self.p_train)
         self.weights_obj_val = weights(p_w=p_ood, p_train=self.p_val)
-        print('self.weights_obj_val.weights_dict', self.weights_obj_val.weights_dict)
-        print('self.weights_obj_tr.weights_dict', self.weights_obj_tr.weights_dict)
 
         # initialize the model object
         self.model = model(weights_obj=self.weights_obj_tr, sklearn_model=self.sklearn_model)
-        print('self.model.weights_obj.weights_dict', self.model.weights_obj.weights_dict)
 
         # check: are the groups in p_train the same as in p_val?
         if set(self.p_train.keys()) != set(self.p_val.keys()):
@@ -134,7 +130,8 @@ class weight_searcher():
 
         return H
 
-    def calc_grad_augmented_loss(self, X, Beta, y, l1_penalty, l2_penalty, g, subsample_weights, eps=1e-6):
+    @classmethod
+    def calc_grad_augmented_loss(self, X, Beta, y,  g, subsample_weights, eps=1e-6):
 
         # first, calculate the gradient of the loss for each group
         groups = np.unique(g)
@@ -142,22 +139,26 @@ class weight_searcher():
         # First, calculat the grad per group
         grad = np.zeros((X.shape[1]+1, len(groups)))
 
-        # go over each group, calculate the gradient
-        for i, group in enumerate(groups[:-1]):
+        # go over each group, except the last one
+        for i, group in enumerate(groups):
             # get the indices for the group
             indices =(g == group).squeeze()
             X_group = X[indices, :]
             y_group = y[indices]
 
             # calculate the gradient
-            grad_group = self.calc_grad_logistic_MLE(X_group, Beta, y_group, l1_penalty, l2_penalty, eps=eps)
+            grad_group = self.calc_grad_BCE(X_group, Beta, y_group, 0, 0, eps=eps)
 
             # add to the grad
             grad[:, i] = grad_group.squeeze()
         
         # if not subsample weights, deduct the grad of the last group from the other groups
         if not subsample_weights:
-            grad[:, -1] = -np.sum(grad[:, :-1], axis=1)
+            # first, deduct the grad of the last group from the other groups
+            grad_G = grad[:, -1].reshape(-1, 1)
+            grad[:, :-1] -= grad_G
+            
+            # second, remove the last col. (the grad of the last group)
             grad = grad[:, :-1]
         else:
             # multiply the grad with the factor
@@ -167,10 +168,10 @@ class weight_searcher():
         
 
     
-
-    def calc_grad_logistic_MLE(self, X, Beta,  y, l1_penalty, l2_penalty, w=None, eps=1e-6):
+    @classmethod
+    def calc_grad_BCE(self, X, Beta,  y, l1_penalty, l2_penalty, w=None, eps=1e-6, divide_by_n=True):
         """
-        Calculate the gradient of the logistic loss function
+        Calculate the gradient of the BCE
         """
 
         # add the intercept to X, if the column dim of X is one less than the row dim of Beta
@@ -181,31 +182,44 @@ class weight_searcher():
         # create a diagonal matrix with inputs sigmoid(x_i^T beta) * (1 - sigmoid(x_i^T beta))
         X_t_Beta = np.matmul(X, Beta)
         sigmoid_X_t_Beta = 1/(1 + np.exp(-X_t_Beta))
-        
+               
 
         # calculate the gradient in two steps:
         # 1. first term: (sigmoid - y)
         # 2. second term: multiply X^T with the first term
         if w is not None:
-            grad = np.matmul(X.T, ((sigmoid_X_t_Beta - y) * w))
+            # check the shape of w
+            if len(w.shape) == 1:
+                w = w.reshape(-1, 1)
+    
+            # multiply element wise with w
+            weighted_sigmoid_X_t_Beta = (sigmoid_X_t_Beta - y) * w
+            grad =np.matmul(X.T, weighted_sigmoid_X_t_Beta)
         else:
-            grad = np.matmul(X.T, (sigmoid_X_t_Beta - y))
-        
+            grad =np.matmul(X.T, (sigmoid_X_t_Beta - y))
         # divide by the number of samples
-        grad /= X.shape[0]
+        if divide_by_n:
+            grad /= X.shape[0]
 
         # add the l_2 penalty
         if l2_penalty>0:
             added_term = 2 * l2_penalty * Beta
-            grad += (added_term/ X.shape[0])
+
+            # add the term
+            if divide_by_n:
+                added_term /= X.shape[0]
+            grad += added_term
 
         elif l1_penalty>0:
             # the following is an approximation of the derivative of the l_1 penalty
             beta_squared = (Beta**2)
             sqrt_beta_squared = np.sqrt(beta_squared + eps)
             added_term =  ((Beta / sqrt_beta_squared) * l1_penalty)
-            grad += (added_term/ X.shape[0])
-
+            
+            # add the term
+            if divide_by_n:
+                added_term /= X.shape[0]
+            grad += added_term
 
         return grad
     
@@ -234,6 +248,8 @@ class weight_searcher():
             factor = model.X_train.shape[0]/self.m
             H *= factor
 
+       
+
         # ensure the Hessian is positive definite
         H += np.eye(H.shape[0])*eps
 
@@ -244,20 +260,16 @@ class weight_searcher():
             H_inv =np.linalg.inv(H)
 
         # Calculate the gradient of the augmented loss with respect to the parameters
-        J_augmented_w = self.calc_grad_augmented_loss(X_train, model.Beta, y_train, model.l1_penalty, model.l2_penalty, g_train, subsample_weights=subsample_weights, eps=1e-6)
-
-        # third, calc the jacobian with respect to the weighted validation loss
-        J_val_w = self.calc_grad_logistic_MLE(X_val, model.Beta, y_val, model.l1_penalty, model.l2_penalty, w=w_val, eps=1e-6)
-
+        J_augmented_w = self.calc_grad_augmented_loss(X_train, model.Beta, y_train, g_train, subsample_weights=subsample_weights, eps=1e-4)
+       
+        # third, calc the jacobian with respect to the weighted validation loss - take the average over the validation set
+        J_val_w = self.calc_grad_BCE(X_val, model.Beta, y_val, 0, 0, w=w_val, eps=1e-4, divide_by_n=True)
+        
         # calculate the derivative of the parameters with respect to w
         partial_deriv_param_w = np.matmul(-H_inv,  J_augmented_w)
-
+       
         # now, calculate the derivative of the validation loss with respect to w
         grad_ift = np.matmul(J_val_w.T, partial_deriv_param_w)
-
-        # this gradient is n_val x (G-1), now take the average over the validation set
-        grad_ift = np.mean(grad_ift, axis=0)
-
        
         # now, calculate the derivative
         if subsample_weights:
@@ -308,9 +320,7 @@ class weight_searcher():
         
         # Initialize the gradient and the current p
         grad = dict.fromkeys(start_p, 999)
-        print('start_p at this point is {}'.format(start_p))
         p_t = self.round_p_dict(copy.deepcopy(start_p))
-        print('p_t at this point is {}'.format(p_t))
 
         # if the trajectory is saved, initialize the trajectory
         if save_trajectory:
@@ -334,7 +344,6 @@ class weight_searcher():
         patience_count = patience
 
         # create weight obj. for initial weights, set the weights in the model
-        print('p_t at this point is {}'.format(p_t))
         self.model.reset_weights(p_t)
         self.model.fit_model(self.X_train, self.y_train, self.g_train)
 
@@ -408,7 +417,6 @@ class weight_searcher():
             
             # make a copy of the weights
             p_t_plus_1 = p_t.copy()
-            print('p_t at this point is {}'.format(p_t_plus_1))
 
             # determine the learning rate at time t
             if lr_schedule == 'constant':
@@ -425,7 +433,6 @@ class weight_searcher():
 
             # calculate the updates
             updates = dict.fromkeys(self.groups, 0)
-            print('grad dict is {}'.format(grad))
 
             # update the weights per group
             for g in self.groups:
