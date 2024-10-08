@@ -1,4 +1,4 @@
-   
+import numpy as np
 
 
 def calc_loss_for_model(model, loss_fn, X, y, g, weights_obj=None, type_pred='probabilities'):
@@ -35,8 +35,8 @@ def calc_worst_group_loss(model, loss_fn, X, y, g):
     for group in unique_g:
 
         # get the index for the group
-        idx = g == group
-        X_g = X[idx]
+        idx = (g == group).squeeze()
+        X_g = X[idx, :]
         y_g = y[idx]
 
         # calculate the loss for the model, for group g

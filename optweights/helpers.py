@@ -40,51 +40,7 @@ def get_p_dict(g):
     
     return p_dict
 
-def get_q(loss_g, eta, eps=10**-5):
 
-        q = np.exp(eta *(loss_g + eps))
-
-        return q
-
-def update_DRO_weights(self, p, loss_dict,  eta_q, C=0.0, n_dict=None): 
-       
-        # get the groups in the loss dict
-        groups_loss = list(loss_dict.keys())
-    
-        # go through each group and update the weights
-        i=0
-        for g in groups_loss:
-            
-            # Get the loss for group g
-            loss_g = loss_dict[g]
-
-            if n_dict is not None:
-                n_g = n_dict[g]
-                regularizer = C/np.sqrt(n_g)
-            else:
-                regularizer = 0.0
-            
-
-            # Get the  q for group g
-            q_g = get_q(loss_g, eta_q) + regularizer
-
-            # Update the weights for group g
-            p[i] = p[i] * q_g
-            i += 1
-        
-        # Normalize the weights
-        p_normalized = p / np.sum(p)
-
-        # clip the p_normalized to be between p_min and p_max
-        p_clipped = np.clip(p_normalized, self.p_min, self.p_max)
-
-        # then normalize the weights again
-        p = p_clipped / np.sum(p_clipped)
-
-        # return the probability weights as a dictionary
-        p_dict = {g: p[i].item() for i, g in enumerate(self.groups)}
-
-        return p_dict
 
 
 # calculate standard weights 
@@ -104,3 +60,77 @@ def calc_subsample_ood_weights(p_train, n_train):
 
     return p_ood
 
+
+def round_p_dict(p, weight_rounding):
+
+        # round each entry in p to the specified number of decimal places
+        p = {g: round(p[g],weight_rounding) for g in p.keys()}
+
+        return p
+
+def clip_p_dict_per_group( p, p_min, p_max):
+
+        # check; if p_min is a float,  turn to dict and apply to all groups
+        if type(p_min) == float:
+            p_min = {g: p_min for g in p.keys()}
+        
+        # check; if p_max is a float, turn to dict and apply to all groups
+        if type(p_max) == float:
+            p_max = {g: p_max for g in p.keys()}
+
+        # clip each entry in p to be higher than min_p, lower than max_p
+        p = {g: min(p_max[g], max(p_min[g], p[g])) for g in p.keys()}
+
+        return p
+
+def normalize_p_dict( p):
+
+    # normalize each entry in p to sum to 1
+    p_sum = sum(p.values())
+    p = {g: p[g] / p_sum for g in p.keys()}
+
+    return p
+
+
+def get_q(loss_g, eta, eps=10**-5):
+
+        q = np.exp(eta *(loss_g + eps))
+
+        return q
+    
+
+def update_DRO_weights(q, loss_dict,  eta_q, C=0.0, n_dict=None, p_min=0.0, p_max=1.0): 
+    
+        # get the groups in the loss dict
+        groups_loss = list(loss_dict.keys())
+    
+        # go through each group and update the weights
+        for g in groups_loss:
+            
+            # Get the loss for group g
+            loss_g = loss_dict[g]
+
+            if n_dict is not None:
+                n_g = n_dict[g]
+                regularizer = C/np.sqrt(n_g)
+            else:
+                regularizer = 0.0
+            
+
+            # Get the  q for group g
+            q_g = get_q(loss_g, eta_q) + regularizer
+
+            # Update the weights for group g
+            q[g] *= q_g
+        
+        # Normalize the weights
+        q_normalized  = normalize_p_dict(q)
+
+        # clip the p_normalized to be between p_min and p_max
+        q_clipped = clip_p_dict_per_group(q_normalized, p_min, p_max)
+
+        # then normalize the weights again
+        q_fin = normalize_p_dict(q_clipped)
+
+        return q_fin
+    

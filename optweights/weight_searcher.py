@@ -1,7 +1,7 @@
 
 import sys
 import numpy as np
-from optweights.helpers import fast_xtdx, get_p_dict, set_seed, update_DRO_weights
+from optweights.helpers import fast_xtdx, get_p_dict, set_seed, update_DRO_weights, round_p_dict, clip_p_dict_per_group, normalize_p_dict
 from optweights.model import model
 from optweights.metrics import calc_loss_for_model, calc_worst_group_loss
 from optweights.weights import weights
@@ -54,35 +54,6 @@ class weight_searcher():
         else:
             sys.exit('The model class is not supported. Please use sklearn.linear_model.LogisticRegression or sklearn.linear_model.LinearRegression')
 
-    def round_p_dict(self, p):
-
-        # round each entry in p to the specified number of decimal places
-        p = {g: round(p[g],self.weight_rounding) for g in p.keys()}
-
-        return p
-
-    def clip_p_dict_per_group(self, p, p_min, p_max):
-
-            # check; if p_min is a float,  turn to dict and apply to all groups
-            if type(p_min) == float:
-                p_min = {g: p_min for g in p.keys()}
-            
-            # check; if p_max is a float, turn to dict and apply to all groups
-            if type(p_max) == float:
-                p_max = {g: p_max for g in p.keys()}
-
-            # clip each entry in p to be higher than min_p, lower than max_p
-            p = {g: min(p_max[g], max(p_min[g], p[g])) for g in p.keys()}
-
-            return p
-    
-    def normalize_p_dict(self, p):
-
-        # normalize each entry in p to sum to 1
-        p_sum = sum(p.values())
-        p = {g: p[g] / p_sum for g in p.keys()}
-
-        return p
     
 
     def calc_Hessian_weighted_logistic_loss(self, X,  w, Beta, l1_penalty, l2_penalty, eps=1e-6, divide_by_n=True):
@@ -326,7 +297,7 @@ class weight_searcher():
         
         # Initialize the gradient and the current p
         grad = dict.fromkeys(start_p, 999)
-        p_t = self.round_p_dict(copy.deepcopy(start_p))
+        p_t = round_p_dict(copy.deepcopy(start_p), self.weight_rounding)
 
         # if the trajectory is saved, initialize the trajectory
         if save_trajectory:
@@ -362,17 +333,20 @@ class weight_searcher():
         # start the gradient descent
         while not stop_GD and (t < T):
 
-             # calculate the loss at the current weights, using the validation data and the validation weights
-            loss_t = calc_loss_for_model(self.model, self.loss, self.X_val, self.y_val, self.g_val, weights_obj = self.weights_obj_val, type_pred='probabilities')
-
             # if GDRO, calculate the worst group loss
             if self.GDRO:
                 worst_group_loss_t, loss_per_group_t = calc_worst_group_loss(self.model, self.loss, self.X_val, self.y_val, self.g_val)
-                
+                print('Loss per group is {}'.format(loss_per_group_t))
+            else:
+                  # calculate the loss at the current weights, using the validation data and the validation weights
+                loss_t = calc_loss_for_model(self.model, self.loss, self.X_val, self.y_val, self.g_val, weights_obj = self.weights_obj_val, type_pred='probabilities')
 
              # save the loss at t
             if save_trajectory:
-                loss_at_t_traj[t-1] = loss_t
+                if self.GDRO:
+                    loss_at_t_traj[t-1] = worst_group_loss_t
+                else:
+                    loss_at_t_traj[t-1] = loss_t
 
             # if GDRO, this is done based on the worst group loss
             if self.GDRO:
@@ -402,13 +376,13 @@ class weight_searcher():
             if self.GDRO:
 
                 # update the weights
-                p_GDRO_t =  update_DRO_weights(p_GDRO_t, loss_per_group_t, eta_q)
+                q_t =  update_DRO_weights(q_t, loss_per_group_t, eta_q, p_min=self.p_min, p_max=1.0)
 
                 # set the weights for the validation set
-                self.weights_obj_val.reset_weights(p_w=p_GDRO_t)
+                self.weights_obj_val.reset_weights(p_w=q_t)
 
                 # set the weights for the validation data
-                print('The GDRO probabilities are updated to {}, based on this loss per group: {}'.format(p_GDRO_t, loss_per_group_t))
+                print('The GDRO probabilities are updated to {}, based on this loss per group: {}'.format(q_t, loss_per_group_t))
 
             # calculate the grad
             grad = self.weight_grad_via_ift(self.model, p_t, self.X_train, self.y_train, self.g_train, self.X_val, self.y_val, self.g_val, self.weights_obj_val, eps=1e-6,   subsample_weights=self.subsample_weights)
@@ -471,15 +445,14 @@ class weight_searcher():
 
 
             # round the p_at_t to the specified number of decimal places
-            p_t= self.round_p_dict(p_t_plus_1)
+            p_t= round_p_dict(p_t_plus_1, self.weight_rounding)
 
             # clip the p_at_t
-            p_t =  self.clip_p_dict_per_group(p_t, p_min=self.p_min, p_max=1.0)
+            p_t =  clip_p_dict_per_group(p_t, p_min=self.p_min, p_max=1.0)
 
             # if normalize, clip again
             if not self.subsample_weights:
-                p_t = self.normalize_p_dict(p_t)
-
+                p_t = normalize_p_dict(p_t)
 
             # after the p_at_t is determined, update the model
             time_before = time.time()
@@ -487,7 +460,6 @@ class weight_searcher():
             self.model.fit_model(self.X_train, self.y_train, self.g_train)
             if verbose:
                 print('The model is updated in {} seconds'.format(time.time()-time_before))
-
 
             # save the trajectory if needed
             if save_trajectory:
