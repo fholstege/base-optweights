@@ -154,8 +154,6 @@ def test_BCE_grad():
     p_train = get_p_dict(g)
     weight_obj_val = weights(p_w={1: 0.5, 2: 0.5}, p_train=p_train)
     w = weight_obj_val.assign_weights(g)
-    print('shape of X, y, w, Beta', X.shape, y.shape, w.shape, Beta.shape)
-
     grad_numpy = calc_grad_func(X, Beta, y, l1_penalty, l2_penalty, w)
 
     # Calculate gradient using PyTorch

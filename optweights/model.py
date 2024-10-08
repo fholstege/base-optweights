@@ -2,8 +2,10 @@
 
 # standard libraries
 import numpy as np
+import sys
+# for setting the seed
+from optweights.helpers import set_seed
 
-# for autograd
 # for linear/logistic regression
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.metrics import mean_squared_error as mse
@@ -16,7 +18,7 @@ class model():
 
     """
 
-    def __init__(self, weights_obj, sklearn_model, add_intercept=True):
+    def __init__(self, weights_obj, sklearn_model, add_intercept=True, subsampler=False, verbose=True, k_subsamples=1):
         """
         Parameters:
             weights_obj: weights object
@@ -45,6 +47,72 @@ class model():
             self.l2_penalty = 1/self.base_model.C
         else:
             self.l2_penalty = 0
+
+        
+        # if subsampler, then fit via subsampling
+        self.subsampler = subsampler
+        self.k_subsamples = k_subsamples
+
+        # do a check; if self.subsampler, then in the weights_obj, the self.weighted_loss_weights should be False
+        if self.subsampler:
+            if self.weights_obj.weighted_loss_weights:
+                raise ValueError('If subsampler is True, then the weights object should have weighted_loss_weights set to False')
+
+        # verbose
+        self.verbose = verbose
+    
+
+    def get_subsample_groups(self, X, y, g, seed):
+        """
+        Creates subsample of original sample
+        Selects p_g * n_g unique samples from group g
+        """
+        
+
+        # get the groups
+        groups = np.unique(g)
+
+        # loop over each group, create dict with per group: indeces, and size
+        group_dict = {}
+        for group in groups:
+            group_dict[group] = {}
+            group_dict[group]['i'] = np.where(g == group)[0]
+            group_dict[group]['n'] = len(group_dict[group]['i'])
+        
+
+        # now, get the subsample per group, each of size n_tilde
+        i_sample = []
+        for group in groups:
+            i_group = group_dict[group]['i']
+            n_g = group_dict[group]['n']
+            m_g = int(np.ceil(self.weights_obj.weights_dict[group]*n_g).item())
+           
+            if self.verbose:
+                print('Sampling without replacement for group {}, sampling proportion: {}, a total of {}'.format(group, m_g/n_g, m_g))
+            
+            # first, shuffle the i_group based on the seed
+            set_seed(seed)
+            i_group_shuffled = np.random.permutation(i_group)
+            
+            # second, select the first m_g indeces
+            i_sample_group = i_group_shuffled[:m_g]
+
+            # add to the list
+            i_sample.append(i_sample_group)
+        
+        
+        # now, combine the indeces
+        i_sample = np.concatenate(i_sample)
+        self.m = len(i_sample)
+        if self.verbose:
+            print('Size of subsample: {}'.format(len(i_sample)))
+        
+        # get the subsample
+        X_tilde = X[i_sample, :]
+        y_tilde = y[i_sample]
+  
+
+        return X_tilde, y_tilde, i_sample
         
 
     def reset_weights(self, p_w):
@@ -52,28 +120,62 @@ class model():
         Reset the weights object
         """
         self.weights_obj.reset_weights(p_w)
+
     
-    def fit_model(self, X, y, g):
+    def get_Beta(self, base_model):
+        """
+        Combine the coef and intercept in Beta
+        """
+        coef = base_model.coef_
+        intercept = base_model.intercept_
+        return np.concatenate((intercept, coef[0])).reshape(-1, 1)
+    
+    def fit_model(self, X, y, g, seed=0):
         """
         Based on the weights object, fit the model to the data.
         """
 
-        # get the weights for the group
-        w = self.weights_obj.assign_weights(g)
-
-        # check - if shape[1] of y is 1, turn to (n,)
-        if len(y.shape) == 2:
+        # check; if shape[1] of y is 1, turn to (n,)
+        if len(y.shape) == 2 and y.shape[1] == 1:
             y = y.reshape(-1)
 
-        # fit the model
-        self.base_model.fit(X, y, sample_weight=w)
+        # if subsampler, then fit via subsampling
+        if self.subsampler:
 
-        # get coef, intercept
-        coef = self.base_model.coef_
-        intercept = self.base_model.intercept_
+            # create k subsamples
+            list_Beta = []
+            for i in range(self.k_subsamples):
 
-        # combine coef and intercept in Beta
-        self.Beta = np.concatenate((intercept, coef[0])).reshape(-1, 1)
+                # get the subsample
+                X_tilde_i, y_tilde_i, _ = self.get_subsample_groups(X, y, g, seed=seed+i)
+                self.base_model.fit(X_tilde_i, y_tilde_i)
+
+                # get the Beta, add to list
+                Beta_i = self.get_Beta(self.base_model)
+                list_Beta.append(Beta_i)
+
+
+            # if list > 1, get the mean
+            if len(list_Beta) > 1:
+                self.Beta = np.mean(np.array(list_Beta), axis=0)
+            else:
+                self.Beta = list_Beta[0]
+
+        else:
+
+            # get the weights for the group
+            w = self.weights_obj.assign_weights(g)
+
+            # check - if shape[1] of y is 1, turn to (n,)
+            if len(y.shape) == 2:
+                y = y.reshape(-1)
+
+            # fit the model
+            self.base_model.fit(X, y, sample_weight=w)
+            self.m = X.shape[0]
+
+            # get the Beta
+            self.Beta = self.get_Beta(self.base_model)
 
     
     def predict(self, X, type_pred='linear'):

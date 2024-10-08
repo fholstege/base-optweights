@@ -10,7 +10,7 @@ import copy
 import time
 
 class weight_searcher():
-    def __init__(self, sklearn_model, X_train, y_train, g_train, X_val, y_val, g_val, p_ood=None, GDRO=False, weight_rounding=4, p_min=10e-4):
+    def __init__(self, sklearn_model, X_train, y_train, g_train, X_val, y_val, g_val, p_ood=None, GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4):
 
         # set the attributes
         self.sklearn_model = sklearn_model
@@ -23,6 +23,8 @@ class weight_searcher():
         self.GDRO = GDRO
         self.weight_rounding = weight_rounding
         self.p_min = p_min
+        self.subsample_weights = subsample_weights
+        self.k_subsamples = k_subsamples
         
 
         # given the g_train, g_val, calculate the p_train, p_val
@@ -32,11 +34,11 @@ class weight_searcher():
         self.G = len(self.groups)
 
         # initialize the weights object for train, val
-        self.weights_obj_tr = weights(p_w=None, p_train=self.p_train)
-        self.weights_obj_val = weights(p_w=p_ood, p_train=self.p_val)
+        self.weights_obj_tr = weights(p_w=None, p_train=self.p_train, weighted_loss_weights=not subsample_weights)
+        self.weights_obj_val = weights(p_w=p_ood, p_train=self.p_val, weighted_loss_weights=True)
 
         # initialize the model object
-        self.model = model(weights_obj=self.weights_obj_tr, sklearn_model=self.sklearn_model)
+        self.model = model(weights_obj=self.weights_obj_tr, sklearn_model=self.sklearn_model, subsampler=self.subsample_weights, k_subsamples=k_subsamples)
 
         # check: are the groups in p_train the same as in p_val?
         if set(self.p_train.keys()) != set(self.p_val.keys()):
@@ -116,7 +118,7 @@ class weight_searcher():
             else:
                 H += added_term
 
-        elif l1_penalty>0:
+        if l1_penalty>0:
             # the following is an approximation of the derivative of the l_1 penalty
             beta_squared = (Beta**2).squeeze()
             H_l_1_approx =   eps/((beta_squared + eps)**(3/2))
@@ -132,7 +134,7 @@ class weight_searcher():
         return H
 
     @classmethod
-    def calc_grad_augmented_loss(self, X, Beta, y,  g, subsample_weights, eps=1e-6):
+    def calc_grad_augmented_loss(self, X, Beta, y,  g, subsample_weights, eps=1e-6, m=None):
 
         # first, calculate the gradient of the loss for each group
         groups = np.unique(g)
@@ -163,7 +165,8 @@ class weight_searcher():
             grad = grad[:, :-1]
         else:
             # multiply the grad with the factor
-            grad *= self.m/X.shape[0]
+            factor = X.shape[0]/m
+            grad *= factor
         
         return grad
         
@@ -232,7 +235,6 @@ class weight_searcher():
         groups = list(p.keys())
         last_group = self.G
 
-        
         # get the w_train, w_val
         w_train = model.weights_obj.assign_weights(g_train)
         w_val = weights_obj_val.assign_weights(g_val)
@@ -246,10 +248,11 @@ class weight_searcher():
 
         # use multiplication factor if subsample_weights
         if subsample_weights:
-            factor = model.X_train.shape[0]/self.m
+            n_train = X_train.shape[0]
+            factor = n_train/model.m
             H *= factor
-
        
+
 
         # ensure the Hessian is positive definite
         H += np.eye(H.shape[0])*eps
@@ -261,7 +264,7 @@ class weight_searcher():
             H_inv =np.linalg.inv(H)
 
         # Calculate the gradient of the augmented loss with respect to the parameters
-        J_augmented_w = self.calc_grad_augmented_loss(X_train, model.Beta, y_train, g_train, subsample_weights=subsample_weights, eps=1e-4)
+        J_augmented_w = self.calc_grad_augmented_loss(X_train, model.Beta, y_train, g_train, subsample_weights=subsample_weights, eps=1e-4, m=model.m)
        
         # third, calc the jacobian with respect to the weighted validation loss - take the average over the validation set
         J_val_w = self.calc_grad_BCE(X_val, model.Beta, y_val, 0, 0, w=w_val, eps=1e-4, divide_by_n=True)
@@ -271,9 +274,10 @@ class weight_searcher():
        
         # now, calculate the derivative of the validation loss with respect to w
         grad_ift = np.matmul(J_val_w.T, partial_deriv_param_w)
-       
+   
         # now, calculate the derivative
         if subsample_weights:
+            grad_ift = grad_ift.squeeze()
             grad_ift_dict =  {g: grad_ift[i].item() for i, g in enumerate(groups)}
 
         # for the last group, sum the changes in the other groups and taking the negative
@@ -292,7 +296,7 @@ class weight_searcher():
 
         return grad_ift_dict
 
-    def optimize_weights(self, start_p, T,  lr,  momentum, eps=0, patience=None,  save_trajectory=False,  verbose=True,  eta_q=0.1, decay=0.9, lr_schedule='constant',stable_exp=True, p_min=10e-4, subsample_weights=False, lock_in_p_g = None, seed=0):
+    def optimize_weights(self, start_p, T,  lr,  momentum, eps=0, patience=None,  save_trajectory=False,  verbose=True,  eta_q=0.1, decay=0.9, lr_schedule='constant',stable_exp=True,   lock_in_p_g = None):
         """
         Optimize the weights using exponentiated gradient descent
         
@@ -344,11 +348,11 @@ class weight_searcher():
         best_p = start_p
         stop_GD = False
         patience_count = patience
-
+        
         # create weight obj. for initial weights, set the weights in the model
         self.model.reset_weights(p_t)
         self.model.fit_model(self.X_train, self.y_train, self.g_train)
-
+ 
          # if GDRO, save the p_at_t
         if self.GDRO:
             q_t = {g: 1/self.G for g in self.groups}
@@ -407,7 +411,7 @@ class weight_searcher():
                 print('The GDRO probabilities are updated to {}, based on this loss per group: {}'.format(p_GDRO_t, loss_per_group_t))
 
             # calculate the grad
-            grad = self.weight_grad_via_ift(self.model, p_t, self.X_train, self.y_train, self.g_train, self.X_val, self.y_val, self.g_val, self.weights_obj_val, eps=1e-6,   subsample_weights=subsample_weights)
+            grad = self.weight_grad_via_ift(self.model, p_t, self.X_train, self.y_train, self.g_train, self.X_val, self.y_val, self.g_val, self.weights_obj_val, eps=1e-6,   subsample_weights=self.subsample_weights)
 
             # provide information about the process
             if verbose:
@@ -473,7 +477,7 @@ class weight_searcher():
             p_t =  self.clip_p_dict_per_group(p_t, p_min=self.p_min, p_max=1.0)
 
             # if normalize, clip again
-            if not subsample_weights:
+            if not self.subsample_weights:
                 p_t = self.normalize_p_dict(p_t)
 
 
@@ -481,7 +485,8 @@ class weight_searcher():
             time_before = time.time()
             self.model.reset_weights(p_w=p_t)
             self.model.fit_model(self.X_train, self.y_train, self.g_train)
-            print('The model is updated in {} seconds'.format(time.time()-time_before))
+            if verbose:
+                print('The model is updated in {} seconds'.format(time.time()-time_before))
 
 
             # save the trajectory if needed

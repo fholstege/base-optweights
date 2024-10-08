@@ -76,6 +76,17 @@ def test_weight_searcher_helpers():
     model_obj.reset_weights(p_alt)
     assert model_obj.weights_obj.p_w == p_alt
 
+    # check; does the subsampling procedure work? first reset the weights to subsample 100 of both
+    p_subsample = {1: 1, 2: 1/9}
+    weights_obj_subsample = weights(p_subsample, p_train, weighted_loss_weights=False)
+    model_obj_subsample = model( weights_obj_subsample, logreg, add_intercept=True, subsampler=True, k_subsamples=1)
+    _, _,i_sample = model_obj_subsample.get_subsample_groups(X_train, y_train, g_train, seed=0)
+    g_sample = g_train[i_sample]
+   
+    assert len(g_sample[g_sample==1]) == 100 and len(g_sample[g_sample==2]) == 100
+
+
+
 
 
 

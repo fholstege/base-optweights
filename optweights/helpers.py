@@ -86,3 +86,21 @@ def update_DRO_weights(self, p, loss_dict,  eta_q, C=0.0, n_dict=None):
 
         return p_dict
 
+
+# calculate standard weights 
+def calc_subsample_ood_weights(p_train, n_train):
+
+
+    # get the n_g for each group
+    n_g = {}
+    for key in p_train.keys():
+        n_g[key] = int(np.ceil(p_train[key]*n_train).item())
+
+    # get the n_g for the smallest group
+    n_s = min(n_g.values())
+
+    # for each group, calculate the weights
+    p_ood = {g: n_s/n_g[g] for g in n_g.keys()}
+
+    return p_ood
+

@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 class weights():
     """
@@ -25,7 +26,6 @@ class weights():
         # set the new weights
         self.p_w = p_w
         self.weights_dict = self.set_weights_per_group()
-        print('self.weights_dict', self.weights_dict)
 
 
 
@@ -57,7 +57,6 @@ class weights():
             total = sum(weights.values())
             for g in weights.keys():
                 weights[g] = weights[g]/total
-        
         return weights
     
 
