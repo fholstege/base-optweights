@@ -13,6 +13,13 @@ def set_seed(seed):
 
     
 
+def str_to_bool(text):
+    if text.lower() == 'true':
+        return True
+    elif text.lower() == 'false':
+        return False
+    
+    
 def fast_xtdx( X, diag):
         """
         Compute X.T * D * X where D is diagonal

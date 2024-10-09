@@ -11,3 +11,5 @@ __pycache__/
 *.env.test
 *experiment.py
 .DS_Store
+*data/
+experiment_toy.py

@@ -3,9 +3,9 @@ import sys
 import numpy as np
 from optweights.helpers import fast_xtdx, get_p_dict, set_seed, update_DRO_weights, round_p_dict, clip_p_dict_per_group, normalize_p_dict
 from optweights.model import model
-from optweights.metrics import calc_loss_for_model, calc_worst_group_loss
+from optweights.metrics import calc_loss_for_model, calc_worst_group_loss, calc_BCE
 from optweights.weights import weights
-from sklearn.metrics import log_loss, mean_squared_error
+from sklearn.metrics import  mean_squared_error
 import copy
 import time
 
@@ -48,7 +48,7 @@ class weight_searcher():
         # if sklearn.linear_model.LogisticRegression, use the log_loss
         if self.sklearn_model.__class__.__name__ == 'LogisticRegression':
             # from sklearn use log_loss
-            self.loss = log_loss
+            self.loss = calc_BCE
         elif self.sklearn_model.__class__.__name__ == 'LinearRegression':
             self.loss = mean_squared_error
         else:
@@ -245,17 +245,19 @@ class weight_searcher():
        
         # now, calculate the derivative of the validation loss with respect to w
         grad_ift = np.matmul(J_val_w.T, partial_deriv_param_w)
+
    
         # now, calculate the derivative
         if subsample_weights:
             grad_ift = grad_ift.squeeze()
-            grad_ift_dict =  {g: grad_ift[i].item() for i, g in enumerate(groups)}
+            grad_ift_dict =  {g: grad_ift[g-1].item() for g in groups}
 
         # for the last group, sum the changes in the other groups and taking the negative
         else:
 
             # turn into a dictionary
-            grad_ift_dict = {g:grad_ift[g-1].item() for g in groups[:-1]}
+            grad_ift = grad_ift.squeeze()        
+            grad_ift_dict = {g:grad_ift[g-1].item() for g in groups[:-1]}            
 
             # calculate the change for the last group
             grad_last_group = -np.sum([grad_ift_dict[g] for g in groups[:-1]]).item()
@@ -336,7 +338,6 @@ class weight_searcher():
             # if GDRO, calculate the worst group loss
             if self.GDRO:
                 worst_group_loss_t, loss_per_group_t = calc_worst_group_loss(self.model, self.loss, self.X_val, self.y_val, self.g_val)
-                print('Loss per group is {}'.format(loss_per_group_t))
             else:
                   # calculate the loss at the current weights, using the validation data and the validation weights
                 loss_t = calc_loss_for_model(self.model, self.loss, self.X_val, self.y_val, self.g_val, weights_obj = self.weights_obj_val, type_pred='probabilities')
@@ -382,7 +383,6 @@ class weight_searcher():
                 self.weights_obj_val.reset_weights(p_w=q_t)
 
                 # set the weights for the validation data
-                print('The GDRO probabilities are updated to {}, based on this loss per group: {}'.format(q_t, loss_per_group_t))
 
             # calculate the grad
             grad = self.weight_grad_via_ift(self.model, p_t, self.X_train, self.y_train, self.g_train, self.X_val, self.y_val, self.g_val, self.weights_obj_val, eps=1e-6,   subsample_weights=self.subsample_weights)
@@ -393,8 +393,17 @@ class weight_searcher():
                     loss_format = worst_group_loss_t
                 else:
                     loss_format = loss_t
-                print('At step {}, the loss is {}, we have {} patience left, and the probabilities are {}, which sum to {} with gradients {}.'.format(t, loss_format, patience_count, p_t,  sum(p_t.values()), grad))
-            
+                
+                # format the p_t, and the gradients to print
+                p_t_format = {g: round(p_t[g], 4) for g in p_t}
+                grad_format = {g: round(grad[g], 4) for g in grad}
+                print('At step {}, the loss is {:.4f}, we have {} patience left, and the probabilities are {}, which sum to {:.4f} with gradients {}.'.format(t, loss_format, patience_count, p_t_format,  sum(p_t.values()), grad_format))
+
+                if self.GDRO:
+                    q_t_format = {g: round(q_t[g], 4) for g in q_t}
+                    loss_per_group_format = {g: round(loss_per_group_t[g], 4) for g in loss_per_group_t}
+                    print('The GDRO probabilities are updated to {}, based on this loss per group: {}'.format(q_t_format, loss_per_group_format))
+
             # make a copy of the weights
             p_t_plus_1 = p_t.copy()
 
@@ -446,6 +455,7 @@ class weight_searcher():
 
             # round the p_at_t to the specified number of decimal places
             p_t= round_p_dict(p_t_plus_1, self.weight_rounding)
+            print('The probabilities at time {} are {}'.format(t, p_t))
 
             # clip the p_at_t
             p_t =  clip_p_dict_per_group(p_t, p_min=self.p_min, p_max=1.0)

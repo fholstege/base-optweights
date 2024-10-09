@@ -3,8 +3,10 @@
 # standard libraries
 import numpy as np
 import sys
+
 # for setting the seed
-from optweights.helpers import set_seed
+from optweights.helpers import set_seed, update_DRO_weights
+from optweights.metrics import calc_BCE, calc_worst_group_loss
 
 # for linear/logistic regression
 from sklearn.linear_model import LogisticRegression, SGDClassifier
@@ -18,7 +20,7 @@ class model():
 
     """
 
-    def __init__(self, weights_obj, sklearn_model, add_intercept=True, subsampler=False, verbose=True, k_subsamples=1):
+    def __init__(self, weights_obj, sklearn_model, add_intercept=True, subsampler=False, verbose=False, k_subsamples=1):
         """
         Parameters:
             weights_obj: weights object
@@ -198,3 +200,106 @@ class model():
             raise ValueError('type_pred should be linear, probabilities or class')
   
         return pred
+    
+    def gradient_step_DRO(self, X_b, y_b, g_b, eta_param):
+
+        """
+        Run a single gradient step for the sklearn model
+        """
+
+        # get the weights
+        w_b = self.weights_obj.assign_weights(g_b)
+
+        # set the learning rate
+        self.base_model.learning_rate = 'constant'
+        self.base_model.eta0 = eta_param
+
+        # use the partial fit method of the logreg object
+        self.base_model.partial_fit(X_b, y_b, sample_weight=w_b, classes=np.unique(y_b))
+
+        # turn the coef_ and intercept_ into Beta
+        self.Beta = self.get_Beta(self.base_model)
+    
+
+
+    def optimize_GDRO_via_SGD(self, X_train, y_train, g_train, X_val, y_val, g_val, T, batch_size, eta_param, eta_q, C=0.0, early_stopping=False, patience=1):
+        """
+        Run the GDRO algorithm for the model
+        """
+
+        # get the number of groups in the training data
+        groups = np.unique(g_train)
+
+        # get the initial q_t
+        q_t ={int(group): 1/len(groups) for group in groups}
+
+        # set the initial weights
+        self.reset_weights(q_t)
+
+        # define the n_dict; this is the number of observations in each group
+        n_dict = {int(group): np.sum(g_train == group) for group in groups}
+
+        # save the best worst-case loss
+        best_worst_group_loss = np.inf
+
+        # if the sklearn model uses the log loss, define this
+        if self.base_model.loss == 'log_loss':
+            loss_fn = calc_BCE
+
+        # loop over T epochs
+        for t in range(T):
+            
+            # shuffle the indeces
+            indices = np.arange(X_train.shape[0])
+            shuffled_indices = np.random.permutation(indices)
+
+            # loop over the batches, including the last batch
+            for i in range(0, len(shuffled_indices), batch_size):
+
+                # get the final index
+                last_batch_index = min(i+batch_size, len(shuffled_indices))
+
+                # get the batch indices
+                batch_indices = shuffled_indices[i:last_batch_index]
+
+                # get the batch
+                X_b, y_b, g_b = X_train[batch_indices, :], y_train[batch_indices], g_train[batch_indices]
+
+                # update the parameters
+                self.gradient_step_DRO(X_b, y_b.squeeze(-1), g_b, eta_param)
+
+                # get loss per group for the batch
+                _, loss_dict = calc_worst_group_loss(self, loss_fn, X_b, y_b, g_b)
+                
+                # based on the loss, update the q_t
+                q_t = update_DRO_weights(q_t, loss_dict,  eta_q, C=C, n_dict=n_dict)
+
+                # reset the p_weights of the model
+                self.reset_weights(q_t)
+
+            # after completing the first epoch, get the param
+            if t == 0:
+                best_Beta = self.Beta
+                best_t = t
+            
+            # after completing an epoch, get the loss for the entire dataset
+            worst_group_loss_val, _ = calc_worst_group_loss(self, loss_fn, X_val, y_val, g_val)
+                    
+
+            # print the following stats
+            print('At epoch {}, the worst group loss on the validation set is {} '.format(t, worst_group_loss_val))
+
+            if early_stopping and worst_group_loss_val >= best_worst_group_loss:
+                patience -= 1
+                if patience == 0:
+                    print('Early stopping at epoch {}'.format(t))
+                    break
+            
+            # if loss is better, save the parameters
+            if worst_group_loss_val < best_worst_group_loss:
+                print('New best worst group loss found at epoch {}'.format(t))
+                best_worst_group_loss = worst_group_loss_val
+                best_Beta = self.Beta
+                best_t = t
+        print('Best worst group loss found at epoch {}'.format(best_t))
+        return best_Beta, best_worst_group_loss, best_t
