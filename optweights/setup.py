@@ -12,5 +12,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.9.12",
     ],
-    python_requires=">=3.9.12"
+    python_requires=">=3.9.12",
+    py_modules=[]
 )
