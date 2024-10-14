@@ -5,7 +5,7 @@ import numpy as np
 import sys
 
 # for setting the seed
-from optweights.helpers import set_seed, update_DRO_weights
+from optweights.utils import  update_DRO_weights, set_seed
 from optweights.metrics import calc_BCE, calc_worst_group_loss
 
 # for linear/logistic regression
@@ -136,6 +136,7 @@ class model():
         """
         Based on the weights object, fit the model to the data.
         """
+        
 
         # check; if shape[1] of y is 1, turn to (n,)
         if len(y.shape) == 2 and y.shape[1] == 1:

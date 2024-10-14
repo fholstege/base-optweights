@@ -1,11 +1,17 @@
 
 # import the add_up function from optweights
 from optweights.weights import weights
-from data import WB, CelebA, multiNLI
 from optweights.model import model
 from optweights.weight_searcher import weight_searcher
-from optweights.helpers import calc_subsample_ood_weights, get_p_dict, set_seed, str_to_bool, create_key, get_fraction_original_data, split_data_in_train_val
+from optweights.utils import calc_subsample_ood_weights, get_p_dict, set_seed
 from optweights.metrics import calc_worst_and_weighted_acc
+
+
+# import the data objects
+from data import WB, CelebA, multiNLI
+from helpers import create_key, str_to_bool, get_fraction_original_data, split_data_in_train_val
+
+# import the necessary packages
 from sklearn.linear_model import LogisticRegression
 from matplotlib import pyplot as plt
 import sys, os
@@ -13,7 +19,7 @@ import argparse
 import numpy as np
 import pandas as pd
 
-def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_strength, method, GDRO, T, lr, momentum, patience, lr_schedule, decay, solver, verbose, stable_exp=False, tol=1e-4, val_fit=False, fraction_original_data=1, frac_val_data=0.5, max_iter=100, save=False, result_folder='results/param_search/'):
+def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_strength, method, GDRO, T, lr, momentum, patience, lr_schedule, decay, solver, verbose, stable_exp=False, tol=1e-4, val_fit=False, fraction_original_data=1, frac_val_data=0.5, max_iter=100,  warm_start=False,save=False, result_folder='results/param_search/'):
 
     # define the data object
     if dataset == 'WB':
@@ -51,7 +57,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
                     'verbose': 0,
                     'random_state': seed,
                     'fit_intercept': True, 
-                    'warm_start': False}
+                    'warm_start': warm_start}
     
     # create an sklearn model
     logreg = LogisticRegression(**model_param)
@@ -64,20 +70,15 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
     n_train = len(g_train)
     
     # define the type of optimizer
-    if method == 'SUBG':
+    if method == 'WS:SUBG':
         subsample_weights= True
         k_subsamples = 1
-    elif method == 'DFR':
+    elif method == 'WS:DFR':
         subsample_weights= True
         k_subsamples = 10
-    elif method == 'GW-ERM':
+    elif method == 'WS:GW-ERM':
         subsample_weights= False
         k_subsamples = 1
-
-    # define the method name if GW-ERM with GDRO= True
-    if method == 'GW-ERM' and GDRO:
-        method = 'GDRO'
-
 
     # define the p_standard
     if subsample_weights:
@@ -109,7 +110,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
     # define the model with p_hat
     weights_obj_opt = weights(p_hat, p_train, weighted_loss_weights=not subsample_weights)
     logreg_opt_weights = model(weights_obj_opt, logreg, add_intercept=True, subsampler=subsample_weights, k_subsamples=k_subsamples)
-    logreg_opt_weights.fit_model(X_train, y_train, g_train, seed=seed)
+    logreg_opt_weights.fit_model(X_train, y_train, g_train)
 
     # measure the loss on the validation data for the optimized weights
     y_val_pred= logreg_opt_weights.predict(X_val, type_pred='class')
@@ -117,12 +118,8 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
 
     # if val_fit, fit the whole model on the validation data
     if val_fit:
-        # give warning if the method is GDRO
-        if method == 'GDRO':
-            ValueError('GDRO is not fitted on the validation data, since then cannot be stopped if worst-group loss degrades on the validation data')
-        else:
-            # fit the model on the whole validation data
-            logreg_opt_weights.fit_model(X_val_orig, y_val_orig, g_val_orig, seed=seed)
+        # fit the model on the whole validation data
+        logreg_opt_weights.fit_model(X_val_orig, y_val_orig, g_val_orig)
 
 
     # measure the loss on test data
@@ -205,7 +202,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_augmentation', type=str, default='false', help='Use data augmentation')
     parser.add_argument('--seed', type=int, default=0, help='Seed')
     parser.add_argument('--penalty_strength', type=float, default=1, help='Penalty strength')
-    parser.add_argument('--method', type=str, default='GW-ERM', help='Method to use')
+    parser.add_argument('--method', type=str, default='WS:GW-ERM', help='Method to use')
     parser.add_argument('--GDRO', type=str, default='false', help='Use GDRO')
     parser.add_argument('--T', type=int, default=300, help='Number of iterations')
     parser.add_argument('--lr', type=float, default=0.1, help='Learning rate')
@@ -221,6 +218,7 @@ if __name__ == "__main__":
     parser.add_argument('--fraction_original_data', type=float, default=1, help='Fraction of original data')
     parser.add_argument('--frac_val_data', type=float, default=0.5, help='Fraction of validation data')
     parser.add_argument('--max_iter', type=int, default=100, help='Max iterations')
+    parser.add_argument('--warm_start', type=str, default='false', help='Warm start')
     parser.add_argument('--save', type=str, default='false', help='Save the results')
     parser.add_argument('--result_folder', type=str, default='results', help='Folder to save the results in')
     args = parser.parse_args()
@@ -231,13 +229,14 @@ if __name__ == "__main__":
     args.GDRO = str_to_bool(args.GDRO)
     args.verbose = str_to_bool(args.verbose)
     args.val_fit = str_to_bool(args.val_fit)
+    args.warm_start = str_to_bool(args.warm_start)
 
     # run the main function 
     main(args.dataset, args.early_stopping, args.batch_size, args.data_augmentation, args.seed,
           args.penalty_strength, args.method, args.GDRO, args.T, args.lr, args.momentum, args.patience, args.lr_schedule, args.decay, 
           args.solver, args.verbose, args.stable_exp, args.tol, 
           args.val_fit, args.fraction_original_data, args.frac_val_data,
-          args.max_iter, args.save, args.result_folder)
+          args.max_iter, args.warm_start, args.save, args.result_folder)
 
    
     

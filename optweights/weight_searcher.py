@@ -1,7 +1,7 @@
 
 import sys
 import numpy as np
-from optweights.helpers import fast_xtdx, get_p_dict, set_seed, update_DRO_weights, round_p_dict, clip_p_dict_per_group, normalize_p_dict
+from optweights.utils import fast_xtdx, get_p_dict, update_DRO_weights, round_p_dict, clip_p_dict_per_group, normalize_p_dict
 from optweights.model import model
 from optweights.metrics import calc_loss_for_model, calc_worst_group_loss, calc_BCE
 from optweights.weights import weights

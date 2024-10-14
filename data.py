@@ -1,6 +1,7 @@
 
 import numpy as np
 import sys
+import torch
 
 class data():
 
@@ -82,6 +83,14 @@ class data():
             y_train, y_val, y_test = y_train.cpu().numpy(), y_val.cpu().numpy(), y_test.cpu().numpy()
         if not isinstance(g_train, np.ndarray):
             g_train, g_val, g_test = g_train.cpu().numpy(), g_val.cpu().numpy(), g_test.cpu().numpy()
+        
+        # if y is 1d, turn to 2d
+        if len(y_train.shape) == 1:
+            y_train, y_val, y_test = y_train.reshape(-1, 1), y_val.reshape(-1, 1), y_test.reshape(-1, 1)
+        
+        # if g is 1d, turn to 2d
+        if len(g_train.shape) == 1:
+            g_train, g_val, g_test = g_train.reshape(-1, 1), g_val.reshape(-1, 1), g_test.reshape(-1, 1)
 
         return X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test
     

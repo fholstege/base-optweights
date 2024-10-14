@@ -1,13 +1,17 @@
 
 
 
-# import the add_up function from optweights
-from optweights.weights import weights
+# import the data objects
 from data import WB, CelebA, multiNLI
+from helpers import create_key, str_to_bool, get_fraction_original_data, split_data_in_train_val
+
+# import the optweights functions
 from optweights.model import model, GDRO_model, JTT_model
-from optweights.weight_searcher import weight_searcher
-from optweights.helpers import calc_subsample_ood_weights, get_p_dict, set_seed, str_to_bool, create_key, get_fraction_original_data, split_data_in_train_val
+from optweights.utils import calc_subsample_ood_weights, get_p_dict, set_seed
 from optweights.metrics import calc_worst_and_weighted_acc
+from optweights.weights import weights
+
+# import the necessary packages
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from matplotlib import pyplot as plt
 import sys, os
@@ -158,10 +162,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
             'weighted_acc_test': weighted_acc_test_standard,
             'wg_test': wg_test_standard}
     
-    # from model param: remove the C key, replace with penalty_strength
-    model_param.pop('C', None)
-    model_param['penalty_strength'] = penalty_strength
-    
+  
     # create a key for the result
     key = create_key(dataset, method, penalty_strength, batch_size, data_augmentation, early_stopping, seed, solver, tol, fraction_original_data, val_fit, lambda_JTT, C_GDRO, eta_param_GDRO, eta_q_GDRO)
 

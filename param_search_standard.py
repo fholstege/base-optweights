@@ -1,22 +1,22 @@
 
 
 
-# import the add_up function from optweights
-from optweights.weights import weights
-from data import WB, CelebA, multiNLI
-from optweights.model import model
-from optweights.weight_searcher import weight_searcher
-from optweights.helpers import calc_subsample_ood_weights, get_p_dict, set_seed, str_to_bool, create_key, get_fraction_original_data, split_data_in_train_val
-from optweights.metrics import calc_worst_and_weighted_acc
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+
+# import helper functions
+from helpers import str_to_bool
+
+# import necessary libraries
 from matplotlib import pyplot as plt
 import sys, os
 import argparse
 import numpy as np
 import pandas as pd
-from generate_result_standard import main as main_standard
 import time
 import pickle
+
+# the main function to run the parameter search
+from generate_result_standard import main as main_standard
+
 
 def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,  solver, tol, penalty_strengths, lambdas_JTT, Cs_GDRO, etas_param_GDRO, max_iter, fraction_original_data, save, result_folder):
     """
@@ -110,8 +110,30 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
             # get the key
             key = result_param_key['key']
 
+            # now, create an entry for the result_table
+            entry = {'dataset': dataset,
+                     'early_stopping': early_stopping,
+                        'batch_size': batch_size,
+                        'data_augmentation': data_augmentation,
+                        'method': method,
+                        'seed': seed,
+                         'fraction_original_data': fraction_original_data,
+                        'val_fit': val_fit,
+                        'wg_val': result_param_key['wg_val'],
+                        'wg_test': result_param_key['wg_test'],
+                        'weighted_acc_val': result_param_key['weighted_acc_val'],
+                        'weighted_acc_test': result_param_key['weighted_acc_test'],
+                        'penalty_strength': penalty_strength_combination,
+                        'lambda_JTT': lambda_JTT_combination,
+                        'C_GDRO': C_GDRO_combination,
+                        'eta_param_GDRO': eta_param_GDRO_combination,
+                        'solver': solver,
+                        'tol': tol,
+                        'max_iter': max_iter,
+                        'key': key}
+
             # save the result in the result_table
-            result_table[i] = result_param_key
+            result_table[i] = entry
 
             # save the model via the key
             models[key] = logreg_model_standard
@@ -160,7 +182,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
 
         ## second, save the models in the same directory
         # create a directory in the folder called 'models'
-        model_folder = result_folder + '/models'
+        model_folder = result_folder + '/models/Standard'
         if not os.path.exists(model_folder):
             os.makedirs(model_folder)
         

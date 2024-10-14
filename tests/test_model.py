@@ -1,7 +1,6 @@
 
 
 # import the add_up function from optweights
-import pytest
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from optweights.model import model
