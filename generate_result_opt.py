@@ -42,9 +42,6 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
         X_train, y_train, g_train, X_val, y_val, g_val = split_data_in_train_val(frac_val_data, X_val, y_val, g_val, seed)
     
 
-    print('shape of X_train, y_train, g_train: ', X_train.shape, y_train.shape, g_train.shape)
-    sys.exit()
-
     # create a logistic regression model
     model_param  = {'max_iter': max_iter,
                     'penalty': 'l1',

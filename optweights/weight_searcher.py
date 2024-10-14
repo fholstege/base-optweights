@@ -6,14 +6,34 @@ from optweights.model import model
 from optweights.metrics import calc_loss_for_model, calc_worst_group_loss, calc_BCE
 from optweights.weights import weights
 from sklearn.metrics import  mean_squared_error
+from sklearn.linear_model import LogisticRegression
 import copy
 import time
 
 class weight_searcher():
-    def __init__(self, sklearn_model, X_train, y_train, g_train, X_val, y_val, g_val, p_ood=None, GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4):
+    def __init__(self,  X_train, y_train, g_train, X_val, y_val, g_val, sklearn_model=None, p_ood=None, GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4):
 
         # set the attributes
-        self.sklearn_model = sklearn_model
+        if sklearn_model is None:
+            # create a standard logistic regression model
+            model_param  = {'max_iter': 100,
+                    'penalty': None, # no penalty
+                    'C':1.0, # placeholder value - no penalty is used
+                    'solver': 'liblinear',
+                    'tol': 1e-4,
+                    'verbose': 0,
+                    'random_state': 0,
+                    'fit_intercept': True, 
+                    'warm_start': False}
+        
+            # create model and add
+            logreg = LogisticRegression(**model_param)
+            self.sklearn_model = logreg
+
+        else:
+            self.sklearn_model = sklearn_model
+
+        # set attributes
         self.X_train = X_train
         self.y_train = y_train
         self.g_train = g_train
