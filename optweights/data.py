@@ -86,6 +86,55 @@ class data():
 
         return X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test
     
+    def prep_JTT_pred(self, pred):
+
+
+        # prepare the pred
+        pred_train = pred['train'].cpu().numpy()
+        pred_val = pred['val'].cpu().numpy()
+        pred_test = pred['test'].cpu().numpy()
+
+        # turn to classes via rounding
+        pred_train = np.round(pred_train)
+        pred_val = np.round(pred_val)
+        pred_test = np.round(pred_test)
+
+        return pred_train, pred_val, pred_test
+
+
+    
+
+class multiNLI(data):
+
+    def load_embeddings(self, early_stopping, batch_size, data_augmentation, seed):
+        """
+        Load the embeddings
+        """
+
+        # define the folder
+        folder_embeddings = 'data/embeddings/multiNLI/param_set_ES_{}_BS_{}_DA_{}/multiNLI_model_seed_{}/'.format(early_stopping, batch_size, data_augmentation, seed)
+
+        # load the .pt files
+        data = torch.load(folder_embeddings + '/data.pt')
+
+        # prepare the embeddings
+        X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test = self.prep_embeddings(data)
+
+        return X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test
+    
+    def load_JTT_pred(self, seed):
+
+        # define the folder
+        folder_embeddings = 'data/JTT_pred/multiNLI/param_set_ES_True_BS_16_WS_1e-4_multiNLI/multiNLI_model_seed_{}/'.format(seed)
+
+        # load the .pt files
+        pred = torch.load(folder_embeddings + '/pred.pt')
+
+        # prepare the pred
+        pred_train, pred_val, pred_test = self.prep_JTT_pred(pred)
+
+        return pred_train, pred_val, pred_test
+    
 class CelebA(data):
 
     def load_embeddings(self, early_stopping, batch_size, data_augmentation, seed):
@@ -102,9 +151,20 @@ class CelebA(data):
         X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test = self.prep_embeddings(data)
 
         return X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test
+    
+    def load_JTT_pred(self, seed):
+
+        # define the folder
+        folder_embeddings = 'data/JTT_pred/CelebA/CelebA_model_seed_{}/'.format(seed)
+
+        # load the .pt files
+        pred = torch.load(folder_embeddings + '/pred.pt')
+
+        # prepare the pred
+        pred_train, pred_val, pred_test = self.prep_JTT_pred(pred)
 
 
-
+        return pred_train, pred_val, pred_test
 
 class WB(data):
 
@@ -123,6 +183,20 @@ class WB(data):
         X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test = self.prep_embeddings(data)
 
         return X_train, X_val, X_test, y_train, y_val, y_test, g_train, g_val, g_test
+
+
+    def load_JTT_pred(self, seed):
+
+        # define the folder
+        folder_embeddings = 'data/JTT_pred/WB/param_set_ES_True_BS_32_DA_False/WB_model_seed_{}/'.format(seed)
+
+        # load the .pt files
+        pred = torch.load(folder_embeddings + '/pred.pt')
+
+       # prepare the pred
+        pred_train, pred_val, pred_test = self.prep_JTT_pred(pred)
+
+        return pred_train, pred_val, pred_test
         
         
 class Toy(data):

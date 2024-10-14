@@ -132,7 +132,7 @@ class model():
         intercept = base_model.intercept_
         return np.concatenate((intercept, coef[0])).reshape(-1, 1)
     
-    def fit_model(self, X, y, g, seed=0):
+    def fit_model(self, X, y, g):
         """
         Based on the weights object, fit the model to the data.
         """
@@ -149,7 +149,7 @@ class model():
             for i in range(self.k_subsamples):
 
                 # get the subsample
-                X_tilde_i, y_tilde_i, _ = self.get_subsample_groups(X, y, g, seed=seed+i)
+                X_tilde_i, y_tilde_i, _ = self.get_subsample_groups(X, y, g, seed=i)
                 self.base_model.fit(X_tilde_i, y_tilde_i)
 
                 # get the Beta, add to list
@@ -200,6 +200,21 @@ class model():
             raise ValueError('type_pred should be linear, probabilities or class')
   
         return pred
+    
+class GDRO_model(model):
+
+    def __init__(self, weights_obj, sklearn_model, add_intercept=True):
+        super().__init__(weights_obj, sklearn_model, add_intercept, subsampler=False, verbose=False, k_subsamples=1)
+        """
+        Parameters:
+            weights_obj: weights object
+                The object that contains the weights for each group in the training data.
+            sklearn_model: sklearn model
+                The sklearn model to be fit to the data.
+            add_intercept: bool
+                If True, add an intercept to the data. Default is False.
+        """
+    
     
     def gradient_step_DRO(self, X_b, y_b, g_b, eta_param):
 
@@ -297,9 +312,112 @@ class model():
             
             # if loss is better, save the parameters
             if worst_group_loss_val < best_worst_group_loss:
-                print('New best worst group loss found at epoch {}'.format(t))
                 best_worst_group_loss = worst_group_loss_val
                 best_Beta = self.Beta
                 best_t = t
-        print('Best worst group loss found at epoch {}'.format(best_t))
+        print('Best worst group loss ({}) found at epoch {}'.format(best_worst_group_loss, best_t))
         return best_Beta, best_worst_group_loss, best_t
+    
+
+
+
+class JTT_model(model):
+    """
+    Wrapper for the JTT model
+    """
+
+    def __init__(self, weights_obj, sklearn_model, add_intercept=True):
+        super().__init__(weights_obj, sklearn_model, add_intercept, subsampler=False, verbose=False, k_subsamples=1)
+        """
+        Parameters:
+            weights_obj: weights object
+                The object that contains the weights for each group in the training data.
+            sklearn_model: sklearn model
+                The sklearn model to be fit to the data.
+            add_intercept: bool
+                If True, add an intercept to the data. Default is False.
+        """
+    
+
+    def fit_model(self, X, y, y_hat_class, p_y_JTT, lambda_JTT, batched=False):
+        """
+        Based on the weights object, fit the model to the data.
+        """
+
+        # get the groups based on the JTT model
+        g_train_JTT = self.get_g_train_JTT(y, y_hat_class, batched=batched)
+
+        # Show counts
+        print('Division of groups in JTT model: {}'.format(np.unique(g_train_JTT, return_counts=True)))
+
+        # now, create JTT weights for an sklearn model
+        p_y = np.mean(y)
+        weight_class_1 = p_y_JTT/p_y
+        weight_class_0 = (1-p_y_JTT)/( 1 - p_y)
+
+        # then, we need to apply additional weights to cases where mistakes are made - group 2, 3
+        # this is the lambda_JTT weight
+        weight_g_1 = weight_class_1 
+        weight_g_2 = weight_class_0 * lambda_JTT
+        weight_g_3 = weight_class_1 * lambda_JTT
+        weight_g_4 = weight_class_0 
+
+        # create a weight vector
+        weights_JTT = {1: weight_g_1, 2: weight_g_2, 3: weight_g_3, 4: weight_g_4}
+        self.weights_obj.weights_dict = weights_JTT
+
+        # assign the weights
+        w_train_JTT = self.weights_obj.assign_weights(g_train_JTT)
+
+        # check - if shape[1] of y is 1, turn to (n,)
+        if len(y.shape) == 2:
+            y = y.reshape(-1)
+
+        # fit the model
+        self.base_model.fit(X, y, sample_weight=w_train_JTT)
+        self.m = X.shape[0]
+
+        # get the Beta
+        self.Beta = self.get_Beta(self.base_model)
+
+    
+    # get the group variable based on the identifier and y
+    def get_group_for_JTT(self, y, mistakes):
+
+        # define the groups as follows: g=1 if y=1, and mistake=1, g=2 if y=1 and mistake=0, g=3 if y=0 and mistake=1, g=4 if y=0 and mistake=0
+        g = np.zeros((y.shape[0], 1))
+        g[(y == 0) & (mistakes == 0)] = 1
+        g[(y == 0) & (mistakes == 1)] = 2
+        g[(y == 1) & (mistakes == 1)] = 3
+        g[(y == 1) & (mistakes == 0)] = 4
+
+        return g
+        
+    def get_g_train_JTT(self, y_train, y_hat_class_train, batched=False):
+            
+        # get the mistakes
+        if batched:
+            # get the mistakes in batches
+            mistakes = np.zeros(y_train.shape[0])
+
+            # get the mistakes
+            interval = 1000
+            for i in range(0, y_train.shape[0], interval):
+                if (i+interval) < y_train.shape[0]:
+                    y_hat_class_train_batch = y_hat_class_train[i:i+1000]
+                    y_train_batch = y_train[i:i+1000]
+                    mistakes[i:i+1000] = (y_train_batch != y_hat_class_train_batch)
+                else:
+                    y_hat_class_train_batch = y_hat_class_train[i:]
+                    y_train_batch = y_train[i:]
+                    mistakes[i:] =  (y_train_batch != y_hat_class_train_batch)
+        else:
+            mistakes = (y_train != y_hat_class_train)
+        
+                                            
+        print('Total observations: {}'.format(y_train.shape[0]))
+        print('How many mistakes in (1) total: {}, (2) class y=0: {}, and (3) class y=1: {}'.format(np.sum(mistakes), np.sum(mistakes[y_train==0]), np.sum(mistakes[y_train==1])))
+        
+        # define the groups 
+        g_train_JTT = self.get_group_for_JTT(y_train, mistakes)
+        return g_train_JTT
