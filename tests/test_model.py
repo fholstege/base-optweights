@@ -4,7 +4,6 @@
 import pytest
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from data import Toy
 from optweights.model import model
 from optweights.weights import weights
 
