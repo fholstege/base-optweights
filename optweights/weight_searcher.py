@@ -19,7 +19,7 @@ class weight_searcher():
             model_param  = {'max_iter': 100,
                     'penalty': None, # no penalty
                     'C':1.0, # placeholder value - no penalty is used
-                    'solver': 'liblinear',
+                    'solver': 'liblinear', # standard lib to solve
                     'tol': 1e-4,
                     'verbose': 0,
                     'random_state': 0,

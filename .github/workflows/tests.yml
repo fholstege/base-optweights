@@ -23,9 +23,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest
+        pip install torch
         pip install -r requirements.txt
-        pip install -e optweights
+        pip install -e .
     - name: Run tests
       run: |
-        export PYTHONPATH=$PYTHONPATH: optweights
         pytest tests/

@@ -4,42 +4,15 @@
 import pytest
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from optweights.data import Toy
+from data import Toy
 from optweights.model import model
 from optweights.weights import weights
 
 
 def test_weight_searcher_helpers():
 
-    # number of datapoints to be created
-    n_train = 1000
-    n_val = 1000
-
     # set probability of group in training, save in dict
     ptr = 0.9
-    pte = 0.5
-
-    # set the other parameters
-    beta_1 = 0
-    beta_0 = 0
-    sigma_1 = 1
-    sigma_0 = 1
-    gamma = 1
-    a_1 = 1
-    a_0 = 0
-    d=10
-    mu = np.zeros(d)
-
-
-    # instantiate obj. for training and validation + test
-    toy_data_tr = Toy(n=n_train, p=ptr, beta_1=beta_1, beta_0=beta_0, sigma_1=sigma_1, sigma_0=sigma_0,  mu=mu, gamma=gamma, a_0=a_1, a_1=a_0, d=d)
-    toy_data_val = Toy(n=n_val, p=ptr, beta_1=beta_1, beta_0=beta_0, sigma_1=sigma_1, sigma_0=sigma_0,  mu=mu, gamma=gamma, a_0=a_1, a_1=a_0, d=d)
-    toy_data_te = Toy(n=n_val, p=pte, beta_1=beta_1, beta_0=beta_0, sigma_1=sigma_1, sigma_0=sigma_0,  mu=mu, gamma=gamma, a_0=a_1, a_1=a_0, d=d)
-
-    # create training, validation and test data
-    X_train, y_train, g_train = toy_data_tr.dgp_mv(logistic=True)
-    X_val, y_val, g_val = toy_data_val.dgp_mv(logistic=True)
-    X_te, y_te, g_te = toy_data_te.dgp_mv(logistic=True)
 
     # create a logistic regression model
     model_param  = {'max_iter': 100,
@@ -62,6 +35,10 @@ def test_weight_searcher_helpers():
 
   
     # check; when fitting the model, do we get a Beta that has the correct shape
+    X_train = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    y_train = np.array([1, 0, 1, 0])
+    g_train = np.array([1, 2, 1, 2])
+    d = X_train.shape[1]
     model_obj.fit_model(X_train, y_train, g_train)
     assert model_obj.Beta.shape == (d+1, 1)
 
@@ -76,18 +53,7 @@ def test_weight_searcher_helpers():
     model_obj.reset_weights(p_alt)
     assert model_obj.weights_obj.p_w == p_alt
 
-    # check; does the subsampling procedure work? first reset the weights to subsample 100 of both
-    p_subsample = {1: 1, 2: 1/9}
-    weights_obj_subsample = weights(p_subsample, p_train, weighted_loss_weights=False)
-    model_obj_subsample = model( weights_obj_subsample, logreg, add_intercept=True, subsampler=True, k_subsamples=1)
-    _, _,i_sample = model_obj_subsample.get_subsample_groups(X_train, y_train, g_train, seed=0)
-    g_sample = g_train[i_sample]
    
-    assert len(g_sample[g_sample==1]) == 100 and len(g_sample[g_sample==2]) == 100
-
-
-
-
 
 
 

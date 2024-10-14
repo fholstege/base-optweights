@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from optweights.weight_searcher import weight_searcher
 from optweights.weights import weights
-from optweights.data import Toy
+from data import Toy
 from optweights.helpers import set_seed, get_p_dict, clip_p_dict_per_group, normalize_p_dict
 import torch
 from torch.autograd.functional import jacobian
