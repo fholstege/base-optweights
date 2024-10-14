@@ -3,7 +3,7 @@
 
 # import the add_up function from optweights
 from optweights.weights import weights
-from optweights.data import WB, CelebA, multiNLI
+from data import WB, CelebA, multiNLI
 from optweights.model import model
 from optweights.weight_searcher import weight_searcher
 from optweights.helpers import calc_subsample_ood_weights, get_p_dict, set_seed, str_to_bool, create_key, get_fraction_original_data, split_data_in_train_val
