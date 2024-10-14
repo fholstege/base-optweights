@@ -28,7 +28,5 @@ jobs:
         pip install -e .
     - name: Run tests
       run: |
-        pip install torch
-        pip install -r requirements.txt
-        pip install -e .
+        PYTHONPATH=$PYTHONPATH:$(pwd) pytest tests/
         pytest tests/
