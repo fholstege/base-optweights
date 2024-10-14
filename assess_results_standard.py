@@ -6,7 +6,7 @@
 from helpers import  str_to_bool, select_df_for_hyper_param_search, get_best_hyper_param_method
 
 # import functions from other libraries
-import  os
+import  os, sys
 import argparse
 import pandas as pd
 import time
@@ -68,6 +68,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
                 lambda_JTT = best_param_dict['lambda_JTT']
             else:
                 lambda_JTT = None
+            print('Best parameters: penalty_strength: {}, C_GDRO: {}, eta_param_GDRO: {}, lambda_JTT: {}'.format(penalty_strength, C_GDRO, eta_param_GDRO, lambda_JTT))
         
         # run the main function
         result_param_key, _ = main_standard(dataset, early_stopping, batch_size, data_augmentation, seed, 
