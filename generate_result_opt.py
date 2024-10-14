@@ -88,8 +88,13 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
    
     # create a weight searcher object
     set_seed(seed)
-    ws = weight_searcher(logreg, X_train, y_train, g_train, X_val, y_val, g_val, p_ood,
-                          GDRO=GDRO, weight_rounding=4, p_min=10e-4, subsample_weights=subsample_weights, k_subsamples=k_subsamples)
+    ws = weight_searcher(X_train, y_train, g_train, X_val, y_val, g_val, p_ood,
+                         sklearn_model=logreg, 
+                         GDRO=GDRO,
+                         weight_rounding=4, 
+                         p_min=10e-4, 
+                         subsample_weights=subsample_weights, 
+                         k_subsamples=k_subsamples)
     
 
     # get the group with the lowest number of samples, use if subsample_weights=True

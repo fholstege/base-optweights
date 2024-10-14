@@ -11,27 +11,45 @@ import copy
 import time
 
 class weight_searcher():
-    def __init__(self,  X_train, y_train, g_train, X_val, y_val, g_val, sklearn_model=None, p_ood=None, GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4):
+    def __init__(self,  X_train, y_train, g_train, X_val, y_val, g_val, p_ood, sklearn_model=None,  GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4, l1_penalty=0, l2_penalty=0):
 
         # set the attributes
         if sklearn_model is None:
+
+            # if l1_penalty is greater than 0, add the l1 penalty
+            # check; if both l1 and l2 penalty are > 0, raise an error
+            if l1_penalty>0 and l2_penalty>0:
+                sys.exit('Both l1 and l2 penalty are greater than 0. Please choose only one penalty type')
+            # if l1 penalty is greater than 0, add the l1 penalty
+            elif l1_penalty>0:
+                penalty_type = 'l1'
+                penalty = l1_penalty
+            # if l2 penalty is greater than 0, add the l2 penalty
+            elif l2_penalty>0:
+                penalty_type = 'l2'
+                penalty = l2_penalty
+            # if both are 0, no penalty
+            else:
+                penalty_type = None
+                penalty = 1
+            
             # create a standard logistic regression model
             model_param  = {'max_iter': 100,
-                    'penalty': None, # no penalty
-                    'C':1.0, # placeholder value - no penalty is used
-                    'solver': 'liblinear', # standard lib to solve
-                    'tol': 1e-4,
+                    'penalty': penalty_type,        
+                    'C':1/penalty,                
+                    'solver': 'liblinear',  # standard lib to solve
+                    'tol': 1e-4,            # standard tolerance
                     'verbose': 0,
                     'random_state': 0,
                     'fit_intercept': True, 
                     'warm_start': False}
         
             # create model and add
-            logreg = LogisticRegression(**model_param)
-            self.sklearn_model = logreg
+            self.sklearn_model = LogisticRegression(**model_param)
 
         else:
             self.sklearn_model = sklearn_model
+   
 
         # set attributes
         self.X_train = X_train

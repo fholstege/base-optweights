@@ -135,7 +135,55 @@ def test_BCE_grad():
                                 msg="Gradients from numpy and PyTorch do not match")
 
 
-  
+
+def test_weight_searcher_creation():
+
+
+    # Generate random data - train and validation
+    n_train = 1000
+    n_val = 1000
+    d = 5
+    X_train = np.random.randn(n_train, d)
+    y_train = np.random.randint(0, 2, n_train).reshape(-1, 1)
+    g_train = np.random.randint(1, 3, n_train)
+    X_val = np.random.randn(n_val, d)
+    y_val = np.random.randint(0, 2, n_val).reshape(-1, 1)
+    g_val = np.random.randint(1, 3, n_val)
+    l1_penalty = 0.01
+
+    # set param for the searcher
+    p_ood = {1:0.333, 2:0.333, 3:0.333}
+    GDRO=False
+    subsample_weights=False
+    k_subsamples=1
+    seed=1
+
+    # get the parameters of the search
+    p_start = p_ood
+    T=100
+    lr=0.1
+    momentum=0.9
+    patience=T
+    verbose=False
+    lr_schedule='constant'
+    stable_exp=False
+    lock_in_p_g=None
+    decay=0.0
+
+    # create a weight searcher object
+    set_seed(seed)
+    ws = weight_searcher(X_train, y_train, g_train, X_val, y_val, g_val, p_ood,
+                         GDRO=GDRO,
+                         weight_rounding=4, 
+                         p_min=10e-4, 
+                         subsample_weights=subsample_weights, 
+                         k_subsamples=k_subsamples, 
+                         l1_penalty=l1_penalty)
+    
+    # optimize the weights
+    #p_hat =  ws.optimize_weights( p_start, T,  lr,  momentum, patience=patience,    
+    #                              verbose=verbose,  lr_schedule=lr_schedule,stable_exp=stable_exp, lock_in_p_g = lock_in_p_g,
+    #                              save_trajectory=False, decay=decay)
 
    
 
@@ -144,4 +192,5 @@ if __name__ == "__main__":
     test_weight_searcher_helpers()
     test_BCE_grad()
     test_augmented_loss_grad()
+    test_weight_searcher_creation()
     

@@ -35,8 +35,8 @@ python -c "import optweights; print(optweights.__file__)"
 
 # Step 5: Run tests
 echo "Running tests..."
-PYTHONPATH=$PYTHONPATH:$(pwd)
-pytest tests/
+PYTHONPATH=$PYTHONPATH:$(pwd) pytest tests/
+
 
 # Deactivate virtual environment
 deactivate
