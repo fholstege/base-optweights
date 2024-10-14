@@ -14,6 +14,7 @@ rm -rf build dist *.egg-info
 echo "Setting up Python..."
 pyenv local 3.9.12  # This sets up all versions. Adjust as needed.
 
+
 # Step 3: Create and activate a virtual environment
 echo "Creating virtual environment..."
 python -m venv .env.test
@@ -28,13 +29,14 @@ pip install -r requirements.txt
 echo "Local installation of optweights..."
 pip install -e .
 
-# Add this after pip install -e .
+# Add this after pip install -e . to check installation
 pip list | grep optweights
 python -c "import optweights; print(optweights.__file__)"
 
 # Step 5: Run tests
 echo "Running tests..."
-PYTHONPATH=$PYTHONPATH:$(pwd) pytest tests/
+PYTHONPATH=$PYTHONPATH:$(pwd)
+pytest tests/
 
 # Deactivate virtual environment
 deactivate

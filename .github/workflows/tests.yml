@@ -28,5 +28,6 @@ jobs:
         pip install -e .
     - name: Run tests
       run: |
-        PYTHONPATH=$PYTHONPATH:$(pwd) pytest tests/
+        pip install -e .
+        PYTHONPATH=$PYTHONPATH:$(pwd)
         pytest tests/
