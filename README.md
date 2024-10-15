@@ -6,14 +6,13 @@ This package implements the optimization procedure suggested in the paper _Optim
 
 
 
+Below, I give an example for implementing the method. Currently, it only supports optimizing weights for a binary logistic regression model.
+
 
 ```python 
 
 # import the weight_searcher object
 from optweights import weigh_searcher
-
-# import helper function 
-from optweights.utils import get_p_dict
 
 # import the logistic regression model from sklearn
 from sklearn.linear_model import LogisticRegression
@@ -50,7 +49,7 @@ momentum = 0.5      # the momentum parameter - higher is more momentum
 # optimize the weights
 p_hat =  ws.optimize_weights(T,  lr,  momentum)
 
-# get the weights for the training set
+# get the weights for the training set - these can then be used subsequently for an estimator. 
 w_train = ws.return_weights(p_hat, g_train)
 
 ```
@@ -61,6 +60,11 @@ w_train = ws.return_weights(p_hat, g_train)
 # Installation
 Python 3.9 or later is required. 
 
+
+```console
+pip install optweights
+
+``` 
 
 
 
