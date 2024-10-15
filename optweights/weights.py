@@ -4,6 +4,16 @@ import sys
 class weights():
     """
     Class for setting weights for each group in the training/validation data.
+
+    Arguments:
+        p_w: dict, contains the desired proportion of the weights for each group. 
+            Each key is an integer representing the group and each value is a float representing the desired proportion of the weights for that group.
+        p_train: dict, contains the proportion of the training data in each group.
+        weighted_loss_weights: bool, 
+            if True, the assigned weights are the likelihood ratio for the loss function.
+            If False, uses the subsampling weights directly. Default is True.
+
+
     """
 
     def __init__(self, p_w, p_train, weighted_loss_weights=True):
@@ -21,6 +31,10 @@ class weights():
     def reset_weights(self, p_w):
         """
         Reset the weights for each group.
+
+        Arguments:
+            p_w: dict, contains the desired proportion of the weights for each group.
+
         """
 
         # set the new weights
@@ -31,16 +45,22 @@ class weights():
 
     def set_weights_per_group(self, normalize=False):
         """
-        Set the weights for each group of the training data.
-        w_g = p_w[g]/p_train[g], where p_train[g] is the proportion of the training data in group g and p_w[g] is the desired proportion for group g.
+        Set the weights for each group of the training data.]
 
-        Parameters:
+        if self.weighted_loss weights, then w_g = p_w[g]/p_train[g], 
+            where p_train[g] is the proportion of the training data in group g and p_w[g] is the desired proportion for group g.
+        if not self.weighted_loss_weights, then w_g = p_w[g].
+
+        Arguments:
             p_train: dict
                 The proportion of the training data in each group. Each key is an integer representing the group and each value is a float representing the proportion of the training data in that group.
             p_w: dict
                 The desired proportion of the weights for each group. Each key is an integer representing the group and each value is a float representing the desired proportion of the weights for that group.
             normalize: bool
                 If True, normalize the weights so that they sum to 1. Default is True.
+        
+        Returns:
+            weights: dict, contains the weights for each group. Each key is an integer representing the group and each value is a float representing the weight for that group.
         """
 
         weights = {}
@@ -64,8 +84,12 @@ class weights():
         """
         Assign the weights for a specific group.
 
-        Parameters:
+        Arguments:
             g: np.array with shape (n,)
+                The group labels for the data.
+        
+        Returns:
+            weights: np.array with shape (n,)
 
         """
 
