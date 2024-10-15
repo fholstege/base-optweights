@@ -12,6 +12,27 @@ import time
 
 class weight_searcher():
     def __init__(self,  X_train, y_train, g_train, X_val, y_val, g_val, p_ood, sklearn_model=None,  GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4, l1_penalty=0, l2_penalty=0):
+        """
+
+        Arguments:
+            X_train: np.array of (n, d) shape, training data
+            y_train: np.array of (n, k) shape, training labels
+            g_train: np.array of (n, 1) shape, group labels for training
+            X_val: np.array of (n, d) shape, validation data
+            y_val: np.array of (n, k) shape, validation labels
+            g_val: np.array of (n, 1) shape, group labels for validation
+            p_ood: dict, probability of each group in the OOD data
+            sklearn_model: sklearn model, if None, use LogisticRegression
+            GDRO: bool, if True, use optimize the worst-group loss
+            subsample_weights: bool, if True, use subsample weights 
+            k_subsamples: int, number of subsamples
+            weight_rounding: int, number of decimals to round the weights
+            p_min: float, minimum value for the weights
+            l1_penalty: float, l1 penalty
+            l2_penalty: float, l2 penalty
+        
+        
+        """
 
         # set the attributes
         if sklearn_model is None:
@@ -98,6 +119,18 @@ class weight_searcher():
     def calc_Hessian_weighted_logistic_loss(self, X,  w, Beta, l1_penalty, l2_penalty, eps=1e-6, divide_by_n=True):
         """
         Calculate the Hessian of the logistic loss function
+
+        Arguments:
+            X: np.array of (n, d) shape, input data
+            w: np.array of (n, 1) shape, weights
+            Beta: np.array of (d+1, 1) shape, parameters
+            l1_penalty: float, l1 penalty
+            l2_penalty: float, l2 penalty
+            eps: float, threshold for the l1 penalty
+            divide_by_n: bool, if True, divide the Hessian by the number of samples
+        
+        Returns:
+            H: np.array of (d+1, d+1) shape, Hessian matrix
         """
 
         # add the intercept to X, if the column dim of X is one less than the row dim of Beta
@@ -145,6 +178,21 @@ class weight_searcher():
 
     @classmethod
     def calc_grad_augmented_loss(self, X, Beta, y,  g, subsample_weights, eps=1e-6, m=None):
+        """
+        Calculate the gradient of the augmented loss, required for the gradient of the validation loss with respect to the weights
+
+        Arguments:
+            X: np.array of (n, d) shape, input data
+            Beta: np.array of (d+1, 1) shape, parameters
+            y: np.array of (n, 1) shape, labels
+            g: np.array of (n, 1) shape, group labels
+            subsample_weights: bool, if True, use subsample weights
+            eps: float, threshold for the l1 penalty
+            m: int, number of subsamples
+        
+        Returns:
+            grad: np.array of (d+1, G) shape, gradient of the augmented loss
+        """
 
         # first, calculate the gradient of the loss for each group
         groups = np.unique(g)
@@ -186,6 +234,19 @@ class weight_searcher():
     def calc_grad_BCE(self, X, Beta,  y, l1_penalty, l2_penalty, w=None, eps=1e-6, divide_by_n=True):
         """
         Calculate the gradient of the BCE
+
+        Arguments:
+            X: np.array of (n, d) shape, input data
+            Beta: np.array of (d+1, 1) shape, parameters
+            y: np.array of (n, 1) shape, labels
+            l1_penalty: float, l1 penalty
+            l2_penalty: float, l2 penalty
+            w: np.array of (n, 1) shape, weights
+            eps: float, threshold for the l1 penalty
+            divide_by_n: bool, if True, divide the gradient by the number of samples
+        
+        Returns:
+            grad: np.array of (d+1, 1) shape, gradient of the BCE
         """
 
         # add the intercept to X, if the column dim of X is one less than the row dim of Beta
@@ -240,6 +301,26 @@ class weight_searcher():
 
     
     def weight_grad_via_ift(self, model, p, X_train, y_train, g_train, X_val, y_val, g_val, weights_obj_val, eps=1e-6,   subsample_weights=False):
+        """
+        Gets the gradient of the validation loss with respect to the weights, using the IFT
+
+        Arguments:
+            model: model object, model object
+            p: dict, weights
+            X_train: np.array of (n, d) shape, training data
+            y_train: np.array of (n, k) shape, training labels
+            g_train: np.array of (n, 1) shape, group labels for training
+            X_val: np.array of (n, d) shape, validation data
+            y_val: np.array of (n, k) shape, validation labels
+            g_val: np.array of (n, 1) shape, group labels for validation
+            weights_obj_val: weights object, weights object for the validation data
+            eps: float, threshold for the l1 penalty
+            subsample_weights: bool, if True, use subsample weights
+        
+        Returns:
+            grad_ift_dict: dict, gradient of the validation loss with respect to the weights
+        
+        """
 
         # create a copy of the starting weights
         groups = list(p.keys())
@@ -261,9 +342,7 @@ class weight_searcher():
             n_train = X_train.shape[0]
             factor = n_train/model.m
             H *= factor
-       
-
-
+    
         # ensure the Hessian is positive definite
         H += np.eye(H.shape[0])*eps
 
@@ -285,8 +364,6 @@ class weight_searcher():
         # now, calculate the derivative of the validation loss with respect to w
         grad_ift = np.matmul(J_val_w.T, partial_deriv_param_w)
 
-
-   
         # now, calculate the derivative
         if subsample_weights:
             grad_ift = grad_ift.squeeze()
@@ -317,6 +394,16 @@ class weight_searcher():
     
     
     def return_weights(self, p_hat, g_train):
+        """
+        Function to return the weights based on the p_hat and the g_train
+
+        Arguments:
+            p_hat: dict, weights
+            g_train: np.array of (n, 1) shape, group labels for training
+
+        Returns:
+            w_train: np.array of (n, 1) shape, weights
+        """
 
         # use the self.weights_obj to return the weights
         # first, reset the weights using phat
@@ -333,7 +420,7 @@ class weight_searcher():
         """
         Optimize the weights using exponentiated gradient descent
         
-        Parameters:
+        Arguments:
             T: int, number of iterations
             lr: float, learning rate
             momentum: float, momentum
@@ -349,7 +436,7 @@ class weight_searcher():
             lock_in_p_g: int, if not None, lock in the weights for group g
         
         Returns:
-            best_p: dict, the best weights
+            best_p: dict, the optimized weights
         """
 
         # Check: if start_p is None, define it
