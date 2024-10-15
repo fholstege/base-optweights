@@ -68,6 +68,7 @@ class weight_searcher():
         # given the g_train, g_val, calculate the p_train, p_val
         self.p_train = get_p_dict(g_train)
         self.p_val = get_p_dict(g_val)
+        self.p_ood = p_ood
         self.groups = list(self.p_train.keys())
         self.G = len(self.groups)
 
@@ -284,6 +285,7 @@ class weight_searcher():
         # now, calculate the derivative of the validation loss with respect to w
         grad_ift = np.matmul(J_val_w.T, partial_deriv_param_w)
 
+
    
         # now, calculate the derivative
         if subsample_weights:
@@ -293,9 +295,14 @@ class weight_searcher():
         # for the last group, sum the changes in the other groups and taking the negative
         else:
 
-            # turn into a dictionary
-            grad_ift = grad_ift.squeeze()        
-            grad_ift_dict = {g:grad_ift[g-1].item() for g in groups[:-1]}            
+            # squeeze the grad_ift
+            grad_ift = grad_ift.squeeze()   
+
+            # if single group, return the grad_ift
+            if self.G-1 == 1:
+                grad_ift_dict = {1: grad_ift.item()}
+            else:
+                grad_ift_dict = {g:grad_ift[g-1].item() for g in groups[:-1]}            
 
             # calculate the change for the last group
             grad_last_group = -np.sum([grad_ift_dict[g] for g in groups[:-1]]).item()
@@ -306,8 +313,23 @@ class weight_searcher():
       
 
         return grad_ift_dict
+    
+    
+    
+    def return_weights(self, p_hat, g_train):
 
-    def optimize_weights(self, start_p, T,  lr,  momentum, eps=0, patience=None,  save_trajectory=False,  verbose=True,  eta_q=0.1, decay=0.9, lr_schedule='constant',stable_exp=True,   lock_in_p_g = None):
+        # use the self.weights_obj to return the weights
+        # first, reset the weights using phat
+        self.weights_obj_tr.reset_weights(p_hat)
+
+        # then, return the weights based on the g_train
+        w_train = self.weights_obj_tr.assign_weights(g_train)
+
+        return w_train
+
+      
+
+    def optimize_weights(self, T,  lr,  momentum, start_p=None, eps=0, patience=None,  save_trajectory=False,  verbose=True,  eta_q=0.1, decay=0.9, lr_schedule='constant',stable_exp=True,   lock_in_p_g = None):
         """
         Optimize the weights using exponentiated gradient descent
         
@@ -329,6 +351,10 @@ class weight_searcher():
         Returns:
             best_p: dict, the best weights
         """
+
+        # Check: if start_p is None, define it
+        if start_p is None:
+            start_p = self.p_ood
 
         # Check: are the groups in start_p the same as in p_train?
         if set(start_p.keys()) != set(self.p_train.keys()):
@@ -423,7 +449,6 @@ class weight_searcher():
                 # set the weights for the validation set
                 self.weights_obj_val.reset_weights(p_w=q_t)
 
-                # set the weights for the validation data
 
             # calculate the grad
             grad = self.weight_grad_via_ift(self.model, p_t, self.X_train, self.y_train, self.g_train, self.X_val, self.y_val, self.g_val, self.weights_obj_val, eps=1e-6,   subsample_weights=self.subsample_weights)
@@ -453,10 +478,8 @@ class weight_searcher():
                 lr_t = lr
             elif lr_schedule == 'exponential':
                 lr_t = lr * np.exp(-decay*t)
-                #print('The learning rate at time {} is {}'.format(t, lr_t))
             elif lr_schedule == 'linear':
                 lr_t = lr * decay
-                #print('The learning rate at time {} is {}'.format(t, lr_t))
             else:
                 Exception('The learning rate schedule is not recognized')
             
@@ -496,7 +519,6 @@ class weight_searcher():
 
             # round the p_at_t to the specified number of decimal places
             p_t= round_p_dict(p_t_plus_1, self.weight_rounding)
-            print('The probabilities at time {} are {}'.format(t, p_t))
 
             # clip the p_at_t
             p_t =  clip_p_dict_per_group(p_t, p_min=self.p_min, p_max=1.0)

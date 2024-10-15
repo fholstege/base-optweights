@@ -1,7 +1,6 @@
 
 
-# import the add_up function from optweights
-import pytest
+# import the necessary packages
 import numpy as np
 from optweights.weight_searcher import weight_searcher
 from optweights.weights import weights
@@ -151,15 +150,14 @@ def test_weight_searcher_creation():
     l1_penalty = 0.01
 
     # set param for the searcher
-    p_ood = {1:0.333, 2:0.333, 3:0.333}
+    p_ood = {1:0.5, 2:0.5}
     GDRO=False
     subsample_weights=False
     k_subsamples=1
     seed=1
 
     # get the parameters of the search
-    p_start = p_ood
-    T=100
+    T=1 # set to 1 for time sake
     lr=0.1
     momentum=0.9
     patience=T
@@ -180,9 +178,9 @@ def test_weight_searcher_creation():
                          l1_penalty=l1_penalty)
     
     # optimize the weights
-    #p_hat =  ws.optimize_weights( p_start, T,  lr,  momentum, patience=patience,    
-    #                              verbose=verbose,  lr_schedule=lr_schedule,stable_exp=stable_exp, lock_in_p_g = lock_in_p_g,
-    #                              save_trajectory=False, decay=decay)
+    p_hat =  ws.optimize_weights( T,  lr,  momentum, patience=patience, 
+                                  verbose=verbose,  lr_schedule=lr_schedule,stable_exp=stable_exp, lock_in_p_g = lock_in_p_g,
+                                  save_trajectory=False, decay=decay)
 
    
 
