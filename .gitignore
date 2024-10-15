@@ -17,3 +17,9 @@ experiment_toy.py
 *assess_results_*
 *generate_results_*
 data.py
+experimenting_setup.sh
+generate_result_opt.py
+generate_result_standard.py
+helpers.py
+param_search_standard.py
+run_tests_locally.sh
