@@ -14,3 +14,5 @@ __pycache__/
 *data/
 experiment_toy.py
 *results/
+*assess_results_
+*generate_results_

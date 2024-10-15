@@ -325,6 +325,9 @@ class weight_searcher():
             p_min: float, minimum value for the weights
             subsample_weights: bool, if True, use subsample weights
             lock_in_p_g: int, if not None, lock in the weights for group g
+        
+        Returns:
+            best_p: dict, the best weights
         """
 
         # Check: are the groups in start_p the same as in p_train?

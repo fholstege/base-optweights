@@ -82,7 +82,8 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
                                                 max_iter = max_iter,
                                                 val_fit = val_fit,
                                                 fraction_original_data=fraction_original_data,
-                                                save = False)
+                                                save = False,
+                                                result_folder = None)
             
         # get the key
         key = result_param_key['key']

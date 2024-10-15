@@ -76,7 +76,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seed, penalty_s
     elif method == 'WS:DFR':
         subsample_weights= True
         k_subsamples = 10
-    elif method == 'WS:GW-ERM':
+    elif method == 'WS:GW-ERM' or method =='WS:JTT' or method == 'WS:GDRO':
         subsample_weights= False
         k_subsamples = 1
 

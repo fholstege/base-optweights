@@ -5,7 +5,7 @@
 from helpers import  str_to_bool, select_df_for_hyper_param_search, get_best_hyper_param_method
 
 # import functions from other libraries
-import  os
+import  os, sys
 import argparse
 import pandas as pd
 import time
@@ -30,7 +30,7 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
     models ={}
 
     # define the key variables for the optimization procedure
-    if method == 'WS:GDRO':
+    if method == 'WS:GDRO' or method == 'WS:JTT':
         GDRO = True
     else:
         GDRO = False
@@ -60,11 +60,16 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
             result_table_standard = pd.read_csv(result_file)
             base_method = method.split(':')[1]
 
+            # if GDRO, select the penalty strength from GW-ERM
+            if base_method == 'GDRO':
+                base_method = 'GW-ERM'
+
             # select the rows which share key features of the data and method
             result_table_standard_selected = select_df_for_hyper_param_search(result_table_standard, dataset, base_method, early_stopping, batch_size, data_augmentation, seed, solver, tol, fraction_original_data, val_fit, max_iter)
             best_param_dict = get_best_hyper_param_method(base_method, result_table_standard_selected)
             penalty_strength = best_param_dict['penalty_strength']
-            print('The best hyper-parameters for the standard method are: {}'.format(best_param_dict))
+            print('Param selection method: from standard, {}'.format(best_param_dict))
+
 
         
         # now run the main function
@@ -89,8 +94,8 @@ def main(dataset, early_stopping, batch_size, data_augmentation, seeds,  method,
                                                         val_fit=val_fit,
                                                         fraction_original_data=fraction_original_data,
                                                         max_iter=max_iter,
-                                                        save=save,
-                                                        result_folder=result_folder)
+                                                        save=False,
+                                                        result_folder=None)
         
         # get the params for the current combination
         print('Results for seed {}/{}'.format(i+1, n_seeds))

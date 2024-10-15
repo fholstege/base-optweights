@@ -4,6 +4,15 @@ import numpy as np
 def calc_BCE(y, y_pred, sample_weight=None, reduction='mean'):
     """
     Calculate the binary cross entropy loss
+
+    Arguments:
+        y: ndarray of shape (n,) representing the true labels
+        y: ndarray of shape (n,) representing the predicted labels
+        sample_weight: ndarray of shape (n,) representing the sample weights
+        reduction: string representing the reduction type, either 'mean' or 'none'
+
+    Returns:
+        loss: float representing the binary cross entropy loss
     """
     
     # calculate the binary cross entropy loss
@@ -24,6 +33,19 @@ def calc_BCE(y, y_pred, sample_weight=None, reduction='mean'):
 def calc_loss_for_model(model, loss_fn, X, y, g, weights_obj=None, type_pred='probabilities'):
     """
     Calculate the loss for the model
+
+    Arguments:
+        model: model object
+        loss_fn: loss function
+        X: ndarray of shape (n, d) representing the features
+        y: ndarray of shape (n,) representing the true labels
+        g: ndarray of shape (n,) representing the group labels
+        weights_obj: weights object
+        type_pred: string representing the type of prediction, either 'probabilities' or 'labels'
+    
+    Returns:
+        loss: float representing the loss
+
     """
 
     y_pred = model.predict(X, type_pred=type_pred)
@@ -46,6 +68,18 @@ def calc_loss_for_model(model, loss_fn, X, y, g, weights_obj=None, type_pred='pr
 def calc_worst_group_loss(model, loss_fn, X, y, g):
     """
     Calculate the worst group loss for the model
+    
+    Arguments:
+        model: model object
+        loss_fn: loss function
+        X: ndarray of shape (n, d) representing the features
+        y: ndarray of shape (n,) representing the true labels
+        g: ndarray of shape (n,) representing the group labels
+    
+    Returns:
+        worst_group_loss: float representing the worst group loss
+        loss_dict: dictionary with the loss per group
+    
     """
 
     # get the unique groups
@@ -74,6 +108,20 @@ def calc_worst_group_loss(model, loss_fn, X, y, g):
 
 # calculate the worst-group accuracy for each model
 def calc_worst_and_weighted_acc(y, y_pred, g):
+    """
+    Calculate the worst group accuracy and the equal-weighted accuracy
+
+    Arguments:
+        y: ndarray of shape (n,) representing the true labels
+        y_pred: ndarray of shape (n,) representing the predicted labels
+        g: ndarray of shape (n,) representing the group labels
+    
+    Returns:
+        min(accuracy): float representing the worst group accuracy
+        weighted_accuracy: float representing the equal-weighted accuracy
+
+
+    """
 
     # get the combinations in g, sort from smallest to largest
     groups = list(np.unique(g))
