@@ -1,5 +1,5 @@
 # Estimating optimal weights in the presence of sub-population shift
-This package implements the optimization procedure suggested in the paper _Optimizing importance weighting in the presence of sub-population shifts_. You can obtain weights for any dataset, in combination with an skLearn LogisticRegression model (see below).
+This package implements the optimization procedure suggested in the paper _Optimizing importance weighting in the presence of sub-population shifts_. You can obtain weights for any dataset, in combination with an skLearn LogisticRegression model (see below). For now, it only supports a binary outcome variable. 
 
 You can obtain optimised weights for any problems for which you have the following:
 - Groups (_g_)
