@@ -14,11 +14,30 @@ You can obtain optimised weights for any problems for which you have the followi
 ```python 
 
 # import the weight_searcher object
-from optweights import weigh_searcher
+from optweights.weight_searcher import WeightSearcher
 
 # import the logistic regression model from sklearn
 from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import make_classification
 
+# import numpy
+import numpy as np
+
+# create some arbitrary data
+n, d, k = 2000, 100, 2
+X, y = make_classification(
+    n_samples=n,
+    n_features=d,
+    n_classes=k,
+    random_state=42,
+)
+g = np.random.binomial(1, 0.5, size=n) + 1
+y, g = y.reshape(-1, 1), g.reshape(-1, 1)
+
+# make a train/validation split for the data
+n_train = int(n * 0.8)
+X_train, y_train, g_train = X[:n_train], y[:n_train], g[:n_train]
+X_val, y_val, g_val = X[n_train:], y[n_train:], g[n_train:]
 
 # create a logistic regression model
 model_param  = {'max_iter': 100,
@@ -40,7 +59,7 @@ p_ood = {1: 0.5, 2: 0.5}
 # create a weight searcher object
 ws = WeightSearcher(X_train, y_train, g_train, X_val, y_val, g_val, # define the X, y, g for both train/val
                         p_ood=p_ood,                                 # define the distribution of interest
-                        sklearn_model=logreg                         # define the sklearn model for which to optimize weights (optional)
+                        sklearn_model=logreg                         # define the sklearn model (optional)
                      )
 
 # define the arguments for the optimization
@@ -53,7 +72,6 @@ p_hat =  ws.optimize_weights(T,  lr,  momentum)
 
 # get the weights for the training set - these can then be used subsequently for an estimator. 
 w_train = ws.return_weights(p_hat, g_train)
-
 ```
 
 
