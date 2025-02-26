@@ -77,14 +77,51 @@ w_train = ws.return_weights(p_hat, g_train)
 
 
 
-# Installation
-Python 3.9 or later is required. 
+## Installation
+Python 3.9.12 or later is required. 
 
 
 ```console
 pip install optweights
-
 ``` 
+
+# Reproducing the results from the paper
+
+*Datasets*: The Waterbirds dataset is made up of the places dataset ([link](http://places.csail.mit.edu)) and Caltech-UCSD Birds-200-2011 (CUB) dataset ([link](https://www.vision.caltech.edu/datasets/cub_200_2011/)). The celebA dataset can be found [here](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html), and the multiNLI dataset [here](https://gluebenchmark.com/tasks). In order to reproduce the results, save these in the respective folders, e.g. data/original/{dataset}. Then, run the set_{dataset}.py and clean_{dataset}.py files, which puts the datasets in data/Cleaned/{dataset}. After finetuning a model, save the embeddings in data/embeddings/{dataset} using the create_embeddings.py file. 
+
+Below we give an example how to generate the results for a particular dataset (WB) and group-weighted ERM (GW-ERM) on the last-layer embeddings of a model trained with no early stopping, batch_size=32, no data augmentation, and a penalty strength of 100 for the logistic regression.
+
+```console
+python generate_result_standard.py \
+    --dataset WB \
+    --early_stopping False \
+    --batch_size 32 \
+    --data_augmentation False \
+    --seed 1 \
+    --penalty_strength 100 \
+    --method GW-ERM 
+```
+
+Below we run the same method for the same embeddings, but with optimized weights. We use the standard parameters that were also used in the paper. 
+
+```console
+python generate_result_opt.py \
+    --dataset WB \
+    --early_stopping False \
+    --batch_size 32 \
+    --data_augmentation False \
+    --seed 1 \
+    --penalty_strength 100 \
+    --method WS:GW-ERM \
+    --T 200 \
+    --lr 0.1 \
+    --momentum 0.5 \
+    --patience 200 
+```
+
+
+
+
 
 
 
