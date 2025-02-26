@@ -2,15 +2,15 @@
 import sys
 import numpy as np
 from optweights.utils import fast_xtdx, get_p_dict, update_DRO_weights, round_p_dict, clip_p_dict_per_group, normalize_p_dict
-from optweights.model import model
+from optweights.model import Model
 from optweights.metrics import calc_loss_for_model, calc_worst_group_loss, calc_BCE
-from optweights.weights import weights
+from optweights.weights import Weights
 from sklearn.metrics import  mean_squared_error
 from sklearn.linear_model import LogisticRegression
 import copy
 import time
 
-class weight_searcher():
+class WeightSearcher():
     def __init__(self,  X_train, y_train, g_train, X_val, y_val, g_val, p_ood, sklearn_model=None,  GDRO=False, subsample_weights=False, k_subsamples=1, weight_rounding=4, p_min=10e-4, l1_penalty=0, l2_penalty=0):
         """
 
@@ -94,11 +94,11 @@ class weight_searcher():
         self.G = len(self.groups)
 
         # initialize the weights object for train, val
-        self.weights_obj_tr = weights(p_w=None, p_train=self.p_train, weighted_loss_weights=not subsample_weights)
-        self.weights_obj_val = weights(p_w=p_ood, p_train=self.p_val, weighted_loss_weights=True)
+        self.weights_obj_tr = Weights(p_w=None, p_train=self.p_train, weighted_loss_weights=not subsample_weights)
+        self.weights_obj_val = Weights(p_w=p_ood, p_train=self.p_val, weighted_loss_weights=True)
 
         # initialize the model object
-        self.model = model(weights_obj=self.weights_obj_tr, sklearn_model=self.sklearn_model, subsampler=self.subsample_weights, k_subsamples=k_subsamples)
+        self.model = Model(weights_obj=self.weights_obj_tr, sklearn_model=self.sklearn_model, subsampler=self.subsample_weights, k_subsamples=k_subsamples)
 
         # check: are the groups in p_train the same as in p_val?
         if set(self.p_train.keys()) != set(self.p_val.keys()):
@@ -478,7 +478,7 @@ class weight_searcher():
         
         # create weight obj. for initial weights, set the weights in the model
         self.model.reset_weights(p_t)
-        self.model.fit_model(self.X_train, self.y_train, self.g_train)
+        self.model.fit(self.X_train, self.y_train, self.g_train)
  
          # if GDRO, save the p_at_t
         if self.GDRO:
@@ -617,7 +617,7 @@ class weight_searcher():
             # after the p_at_t is determined, update the model
             time_before = time.time()
             self.model.reset_weights(p_w=p_t)
-            self.model.fit_model(self.X_train, self.y_train, self.g_train)
+            self.model.fit(self.X_train, self.y_train, self.g_train)
             if verbose:
                 print('The model is updated in {} seconds'.format(time.time()-time_before))
 

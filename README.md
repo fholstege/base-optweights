@@ -1,13 +1,15 @@
 # Estimating optimal weights in the presence of sub-population shift
+This package implements the optimization procedure suggested in the paper _Optimizing importance weighting in the presence of sub-population shifts_. You can obtain weights for any dataset, in combination with an skLearn LogisticRegression model (see below).
+
+You can obtain optimised weights for any problems for which you have the following:
+- Groups (_g_)
+- Independent variables (_X_)
+- Outcome variable (_y_)
 
 
 
-This package implements the optimization procedure suggested in the paper _Optimizing importance weighting in the presence of sub-population shifts_
 
-
-
-Below, I give an example for implementing the method. Currently, it only supports optimizing weights for a binary logistic regression model.
-
+## Using optimal weights with SKLearn 
 
 ```python 
 
@@ -36,7 +38,7 @@ logreg = LogisticRegression(**model_param)
 p_ood = {1: 0.5, 2: 0.5}
 
 # create a weight searcher object
-ws = weight_searcher(X_train, y_train, g_train, X_val, y_val, g_val, # define the X, y, g for both train/val
+ws = WeightSearcher(X_train, y_train, g_train, X_val, y_val, g_val, # define the X, y, g for both train/val
                         p_ood=p_ood,                                 # define the distribution of interest
                         sklearn_model=logreg                         # define the sklearn model for which to optimize weights (optional)
                      )

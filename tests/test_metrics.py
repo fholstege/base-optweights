@@ -2,8 +2,8 @@
 
 # import the add_up function from optweights
 from optweights.metrics import calc_BCE, calc_loss_for_model
-from optweights.model import model
-from optweights.weights import weights
+from optweights.model import Model
+from optweights.weights import Weights
 from sklearn.metrics import log_loss
 from sklearn.linear_model import LogisticRegression
 import numpy as np
@@ -34,11 +34,10 @@ def test_calc_loss_for_model():
 
     # create a model
     logreg = LogisticRegression()
-    weights_obj = weights({1: 0.1, 2: 0.9}, {1: 0.1, 2: 0.9})
-    model_obj = model( weights_obj, logreg, add_intercept=True)
-    model_obj.fit_model(X, y, g)
+    weights_obj = Weights({1: 0.1, 2: 0.9}, {1: 0.1, 2: 0.9})
+    model_obj = Model( weights_obj, logreg, add_intercept=True)
+    model_obj.fit(X, y, g)
     y_pred = model_obj.predict(X, type_pred='probabilities')
-    
 
     # calculate the loss
     loss = calc_loss_for_model(model_obj, calc_BCE, X, y, g, weights_obj=None)
@@ -46,12 +45,6 @@ def test_calc_loss_for_model():
     # check if the loss is the same as the loss from the log_loss function
     assert np.allclose(loss, calc_BCE(y, y_pred))
 
-
-
-    
-
-
-   
 
 # if main is run, run the tests
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 # import the add_up function from optweights
 import pytest
-from optweights.weights import weights
+from optweights.weights import Weights
 import numpy as np
 
 
@@ -13,7 +13,7 @@ def test_weight_conversion():
     p_w = {1:0.25, 2:0.25, 3:0.25, 4:0.25}
 
     # create a weights object
-    weights_obj = weights(p_w, p_train)
+    weights_obj = Weights(p_w, p_train)
     weights_dict = weights_obj.set_weights_per_group(normalize=False)
 
     # The weights to be are the desired weights
@@ -28,7 +28,7 @@ def test_assign_weights():
     p_w = {1:0.25, 2:0.25, 3:0.25, 4:0.25}
 
     # create a weights object
-    weights_obj = weights(p_w, p_train)
+    weights_obj = Weights(p_w, p_train)
     weights_dict = weights_obj.set_weights_per_group(normalize=False)
 
     # create a group array

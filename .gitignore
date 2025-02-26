@@ -23,3 +23,5 @@ generate_result_standard.py
 helpers.py
 param_search_standard.py
 run_tests_locally.sh
+*illustration
+*plots/

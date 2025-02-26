@@ -1,13 +1,12 @@
-
-
 # import the add_up function from optweights
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from optweights.model import model
-from optweights.weights import weights
+from optweights.model import Model
+from optweights.weights import Weights
 
 
-def test_weight_searcher_helpers():
+
+def test_model_fit():
 
     # set probability of group in training, save in dict
     ptr = 0.9
@@ -28,19 +27,26 @@ def test_weight_searcher_helpers():
     p_train = {1: 1-ptr, 2: ptr}
 
     # create a model obj with the weights obj
-    weights_obj = weights(p_ood, p_train)
-    model_obj = model( weights_obj,logreg, add_intercept=True)
+    weights_obj = Weights(p_ood, p_train)
+    model_obj = Model(weights_obj,logreg, add_intercept=True)
 
-  
-    # check; when fitting the model, do we get a Beta that has the correct shape
+    # fit the model
     X_train = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
     y_train = np.array([1, 0, 1, 0])
     g_train = np.array([1, 2, 1, 2])
     d = X_train.shape[1]
-    model_obj.fit_model(X_train, y_train, g_train)
-    assert model_obj.Beta.shape == (d+1, 1)
+    model_obj.fit(X_train, y_train, g_train)
 
-    # check; when assigning the weights in fit_model, do we get the correct weights?
+    # check; when fitting the model, do we get a Beta that has the correct shape
+    Beta = model_obj.get_Beta()
+    assert Beta.shape == (d+1, 1)
+
+    # check; when predicting the model, do we get a prediction that has the correct shape
+    X_test = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    y_pred = model_obj.predict(X_test, type_pred='probabilities')
+    assert y_pred.shape == (X_test.shape[0], 1)
+
+    # check; when assigning the weights in fit, do we get the correct weights?
     correct_w = {1: 0.5/0.1, 2: 0.5/0.9}
     w_dict = model_obj.weights_obj.set_weights_per_group(normalize=False)
     # check if the same at 4 decimals
@@ -51,18 +57,9 @@ def test_weight_searcher_helpers():
     model_obj.reset_weights(p_alt)
     assert model_obj.weights_obj.p_w == p_alt
 
-   
-
-
-
-    
-
-
-  
 
    
 
 # if main is run, run the tests
 if __name__ == "__main__":
-    test_weight_searcher_helpers()
-    
+    test_model_fit()

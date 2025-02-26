@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 
-class weights():
+class Weights:
     """
     Class for setting weights for each group in the training/validation data.
 

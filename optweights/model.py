@@ -1,5 +1,3 @@
-
-
 # standard libraries
 import numpy as np
 import sys
@@ -13,12 +11,8 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.metrics import mean_squared_error as mse
 
 # wrapper for an Sklearn model. 
-class model():
-    """
-    Takes in a weights object and a model object
-    Wrapper to fit the model with the weights for sklearn models
-
-    """
+class Model:
+    """Takes in a weights object and a model object. Wrapper to fit the model with the weights for sklearn models."""
 
     def __init__(self, weights_obj, sklearn_model, add_intercept=True, subsampler=False, verbose=False, k_subsamples=1):
         """
@@ -124,15 +118,15 @@ class model():
         self.weights_obj.reset_weights(p_w)
 
     
-    def get_Beta(self, base_model):
+    def get_Beta(self):
         """
         Combine the coef and intercept in Beta
         """
-        coef = base_model.coef_
-        intercept = base_model.intercept_
+        coef = self.base_model.coef_
+        intercept = self.base_model.intercept_
         return np.concatenate((intercept, coef[0])).reshape(-1, 1)
     
-    def fit_model(self, X, y, g):
+    def fit(self, X, y, g):
         """
         Based on the weights object, fit the model to the data.
         """
@@ -154,7 +148,7 @@ class model():
                 self.base_model.fit(X_tilde_i, y_tilde_i)
 
                 # get the Beta, add to list
-                Beta_i = self.get_Beta(self.base_model)
+                Beta_i = self.get_Beta()
                 list_Beta.append(Beta_i)
 
 
@@ -178,7 +172,7 @@ class model():
             self.m = X.shape[0]
 
             # get the Beta
-            self.Beta = self.get_Beta(self.base_model)
+            self.Beta = self.get_Beta()
 
     
     def predict(self, X, type_pred='linear'):
@@ -202,7 +196,8 @@ class model():
   
         return pred
     
-class GDRO_model(model):
+class GDROModel(Model):
+    """Wrapper for the GDRO model."""
 
     def __init__(self, weights_obj, sklearn_model, add_intercept=True):
         super().__init__(weights_obj, sklearn_model, add_intercept, subsampler=False, verbose=False, k_subsamples=1)
@@ -234,7 +229,7 @@ class GDRO_model(model):
         self.base_model.partial_fit(X_b, y_b, sample_weight=w_b, classes=np.unique(y_b))
 
         # turn the coef_ and intercept_ into Beta
-        self.Beta = self.get_Beta(self.base_model)
+        self.Beta = self.get_Beta()
     
 
 
@@ -322,10 +317,8 @@ class GDRO_model(model):
 
 
 
-class JTT_model(model):
-    """
-    Wrapper for the JTT model
-    """
+class JTTModel(Model):
+    """Wrapper for the JTT model."""
 
     def __init__(self, weights_obj, sklearn_model, add_intercept=True):
         super().__init__(weights_obj, sklearn_model, add_intercept, subsampler=False, verbose=False, k_subsamples=1)
@@ -379,7 +372,7 @@ class JTT_model(model):
         self.m = X.shape[0]
 
         # get the Beta
-        self.Beta = self.get_Beta(self.base_model)
+        self.Beta = self.get_Beta()
 
     
     # get the group variable based on the identifier and y

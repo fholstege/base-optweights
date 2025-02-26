@@ -1,9 +1,7 @@
-
-
 # import the necessary packages
 import numpy as np
-from optweights.weight_searcher import weight_searcher
-from optweights.weights import weights
+from optweights.weight_searcher import WeightSearcher
+from optweights.weights import Weights
 from optweights.utils import set_seed, get_p_dict, clip_p_dict_per_group, normalize_p_dict
 import torch
 from torch.autograd.functional import jacobian
@@ -41,7 +39,7 @@ def test_augmented_loss_grad():
     Beta = np.random.randn(6)  # 5 features + 1 intercept
    
     # from the weight_searcher class, get calc_augmented_loss
-    calc_grad_augmented_loss_func = weight_searcher.calc_grad_augmented_loss
+    calc_grad_augmented_loss_func = WeightSearcher.calc_grad_augmented_loss
     grad_numpy = calc_grad_augmented_loss_func(X, Beta, y, g, subsample_weights=None, eps=1e-6)
 
     # Calculate gradient using PyTorch
@@ -100,9 +98,9 @@ def test_BCE_grad():
     l2_penalty = 0.01
 
     # from the weight_searcher class, get calc_grad_BCE
-    calc_grad_func = weight_searcher.calc_grad_BCE
+    calc_grad_func = WeightSearcher.calc_grad_BCE
     p_train = get_p_dict(g)
-    weight_obj_val = weights(p_w={1: 0.5, 2: 0.5}, p_train=p_train)
+    weight_obj_val = Weights(p_w={1: 0.5, 2: 0.5}, p_train=p_train)
     w = weight_obj_val.assign_weights(g)
     grad_numpy = calc_grad_func(X, Beta, y, l1_penalty, l2_penalty, w)
 
@@ -169,7 +167,7 @@ def test_weight_searcher_creation():
 
     # create a weight searcher object
     set_seed(seed)
-    ws = weight_searcher(X_train, y_train, g_train, X_val, y_val, g_val, p_ood,
+    ws = WeightSearcher(X_train, y_train, g_train, X_val, y_val, g_val, p_ood,
                          GDRO=GDRO,
                          weight_rounding=4, 
                          p_min=10e-4, 
@@ -190,4 +188,3 @@ if __name__ == "__main__":
     test_BCE_grad()
     test_augmented_loss_grad()
     test_weight_searcher_creation()
-    
